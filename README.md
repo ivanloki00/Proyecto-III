@@ -6,8 +6,6 @@
 
 ## 🏗️ Estructura del Proyecto
 
-Hemos organizado el trabajo siguiendo las mejores prácticas de Data Engineering para que sea modular, limpio y profesional.
-
 ```text
 PROYIII/
 ├── data/               # Gestión de datos (No se suben a GitHub los CSVs grandes)
