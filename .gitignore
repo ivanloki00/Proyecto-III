@@ -1,1 +1,24 @@
-﻿*.csv
+# Ignorar archivos CSV pesados por defecto
+*.csv
+
+# Ignorar todo el contenido de datos pero mantener las carpetas vacías
+data/raw/*
+!data/raw/.gitkeep
+data/interim/*
+!data/interim/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Ignorar modelos entrenados y gráficos generados
+outputs/figures/*
+!outputs/figures/.gitkeep
+outputs/models/*
+!outputs/models/.gitkeep
+
+# Entornos Python y Notebooks
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
+venv/
+env/
