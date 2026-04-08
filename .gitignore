@@ -1,9 +1,10 @@
 # Ignorar archivos CSV pesados por defecto
 *.csv
 
-# Ignorar todo el contenido de datos pero mantener las carpetas vacías
+# Ignorar todo el contenido de datos pero mantener las carpetas vacías Y  datos OSMNX gpkg
 data/raw/*
 !data/raw/.gitkeep
+!data/raw/*.gpkg
 data/interim/*
 !data/interim/.gitkeep
 data/processed/*
@@ -22,3 +23,12 @@ __pycache__/
 .env
 venv/
 env/
+
+
+
+# logs
+outputs/*.log
+
+# cache de OSMnx
+cache/
+
