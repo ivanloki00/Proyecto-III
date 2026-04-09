@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(py -c \":*)",
+      "Bash(python -c ':*)",
+      "Bash(python3 -c ':*)",
+      "Read(//c/Users/Ivan/AppData/Local/Programs/**)",
+      "Read(//c/Users/Ivan/anaconda3/**)",
+      "Read(//c/Users/Ivan/miniconda3/**)",
+      "Bash(uv run:*)",
+      "Bash('/c/Users/Ivan/AppData/Local/Python/bin/python3.exe' --version)",
+      "Bash('/c/Users/Ivan/AppData/Local/Python/bin/python3.exe' -c \"import geopandas; print\\('geopandas ok'\\)\")",
+      "Bash(/c/Users/Ivan/AppData/Local/Python/bin/python3.exe -c ':*)",
+      "Bash($PY:*)",
+      "Bash(/c/Users/Ivan/AppData/Local/Python/bin/python3.exe src/analysis/process_sensors_1.py)",
+      "Bash(/c/Users/Ivan/AppData/Local/Python/bin/python3.exe src/analysis/sensor_road_matching.py)",
+      "Bash(/c/Users/Ivan/AppData/Local/Python/bin/python3.exe src/analysis/integrate_aadf.py)",
+      "Bash(/c/Users/Ivan/AppData/Local/Python/bin/python3.exe src/analysis/feature_engineering.py)",
+      "Bash(/c/Users/Ivan/AppData/Local/Python/bin/python3.exe src/analysis/lur_model.py)",
+      "Bash(/c/Users/Ivan/AppData/Local/Python/bin/python3.exe -c 'import nbformat; print\\('\\\\''nbformat ok'\\\\''\\)')",
+      "Bash(/c/Users/Ivan/AppData/Local/Python/bin/python3.exe add_eda_lur_cells.py)",
+      "Bash(/c/Users/Ivan/AppData/Local/Python/bin/python3.exe -c 'import nbconvert; print\\('\\\\''ok'\\\\''\\)')",
+      "Bash(/c/Users/Ivan/AppData/Local/Python/bin/python3.exe -m jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=300 --ExecutePreprocessor.kernel_name=python3 --output src/analysis/EDA_Temporal.ipynb src/analysis/EDA_Temporal.ipynb --ExecutePreprocessor.start_timeout=60)",
+      "Bash(/c/Users/Ivan/AppData/Local/Python/bin/python3.exe -m jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=300 --ExecutePreprocessor.kernel_name=python3 --inplace EDA_Temporal.ipynb)"
+    ]
+  }
+}
