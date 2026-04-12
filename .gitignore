@@ -11,8 +11,6 @@ data/processed/*
 !data/processed/.gitkeep
 
 # Ignorar modelos entrenados y gráficos generados
-outputs/figures/*
-!outputs/figures/.gitkeep
 outputs/models/*
 !outputs/models/.gitkeep
 
