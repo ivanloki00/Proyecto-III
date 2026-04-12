@@ -44,7 +44,40 @@ Si quieres ejecutar el proceso de limpieza de sensores que ya hemos construido:
 2. Ejecuta todas las celdas de código. Hacia el final del archivo ("Pipeline de Ingesta y Limpieza") verás el proceso automatizado de recolección temporal.
 3. El resultado aparecerá automáticamente procesado y guardado en `data/processed/sensors_cleaned.csv`.
 
+
+
 ---
+
+
+## Extracción de capas urbanas con OSMnx
+
+El script `src/analysis/extract_osm_features.py` implementa la fase de extracción espacial del proyecto para la ciudad de Liverpool a partir de OpenStreetMap, utilizando la librería OSMnx.
+
+### Capas extraídas
+- Red de calles
+- Usos del suelo
+- Edificios
+
+### Metodología
+La extracción se realiza mediante `features_from_place`, siguiendo la guía metodológica del proyecto. Posteriormente, las capas se someten a un proceso de limpieza geométrica defensiva que incluye:
+- eliminación de geometrías nulas o vacías,
+- reparación de geometrías inválidas,
+- filtrado de tipos geométricos coherentes,
+- validación específica de capas poligonales.
+
+Finalmente, todas las capas se reproyectan a `EPSG:27700` (British National Grid), sistema de referencia adecuado para operaciones métricas en Liverpool.
+
+### Salidas
+El script genera los siguientes archivos:
+- `data/raw/streets_liverpool.gpkg`
+- `data/raw/landuse_liverpool.gpkg`
+- `data/raw/buildings_liverpool.gpkg`
+
+### Objetivo dentro del proyecto
+Estas capas constituyen la base espacial sobre la que se desarrollarán etapas posteriores del proyecto, como la generación de buffers alrededor de sensores y la construcción de variables para el modelo LUR.
+
+
+
 
 ## 👥 Colaboradores
 * **ivanloki00** (Coordinación y Limpieza)
