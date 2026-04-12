@@ -23,6 +23,4 @@
 - **Style:** Follow the existing pattern of clear section headers (e.g., `# CONFIG`, `# UTILIDADES`).
 
 ## Workflow Commands
-- **EDA:** `python -m jupyter notebook notebooks/2.0_EDA_Temporal.ipynb`
-- **OSM Extraction:** `python src/data/extract_osm_features.py`
 - **Dependency Management:** Use `uv` or `pip` as required by the environment.
