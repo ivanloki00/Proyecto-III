@@ -1,0 +1,14 @@
+2026-04-08 22:40:30,352 | INFO | === INICIO EXTRACCIÓN OSM LIVERPOOL ===
+2026-04-08 22:40:30,352 | INFO | Extrayendo calles con features_from_place...
+2026-04-08 22:40:45,551 | INFO | streets | filas=8451 | crs=EPSG:27700 | geoms=['LineString']
+2026-04-08 22:40:45,551 | INFO | Extrayendo usos del suelo con features_from_place...
+2026-04-08 22:43:05,692 | INFO | landuse | filas=4176 | crs=EPSG:27700 | geoms=['Polygon']
+2026-04-08 22:43:05,693 | INFO | Extrayendo edificios con features_from_place...
+2026-04-08 22:44:49,698 | INFO | buildings | filas=102118 | crs=EPSG:27700 | geoms=['Polygon']
+2026-04-08 22:44:51,117 | INFO | Created 8,451 records
+2026-04-08 22:44:51,151 | INFO | Guardado C:\Users\Ivan\Ciencia de Datos\PROYIII\data\raw\streets_liverpool.gpkg
+2026-04-08 22:44:51,319 | INFO | Created 4,176 records
+2026-04-08 22:44:51,343 | INFO | Guardado C:\Users\Ivan\Ciencia de Datos\PROYIII\data\raw\landuse_liverpool.gpkg
+2026-04-08 22:45:07,437 | INFO | Created 102,118 records
+2026-04-08 22:45:07,579 | INFO | Guardado C:\Users\Ivan\Ciencia de Datos\PROYIII\data\raw\buildings_liverpool.gpkg
+2026-04-08 22:45:07,579 | INFO | === EXTRACCIÓN FINALIZADA CORRECTAMENTE ===
