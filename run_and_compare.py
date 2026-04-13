@@ -30,7 +30,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger(__name__)
 
 ROOT    = Path(__file__).resolve().parent
-OUT_DIR = ROOT / "outputs" / "LUR"
+OUT_DIR   = ROOT / "outputs" / "LUR"   # CSVs de resultados
+MODELS_DIR = ROOT / "outputs" / "models"  # modelos .pkl
+DOCS_DIR   = ROOT / "docs"               # reportes markdown
 
 PYTHON = sys.executable  # mismo intérprete que está ejecutando este script
 
@@ -89,7 +91,7 @@ def capture_baseline():
     log.info("── Capturando métricas BASELINE ─────────────────────────────────")
     baseline = {}
     for tag, label in [("PM25","PM2.5"), ("PM10","PM10")]:
-        pkl = OUT_DIR / f"lur_model_{tag}.pkl"
+        pkl = MODELS_DIR / f"lur_model_{tag}.pkl"
         baseline[label] = load_model_metrics(pkl)
         if baseline[label]:
             log.info(f"  {label}: R²_CV={baseline[label]['r2_cv']:.4f}, "
@@ -243,7 +245,7 @@ def print_comparison(before: dict, after: dict):
 
 def save_comparison_report(before: dict, after: dict, scripts_run: list):
     """Escribe outputs/comparison_report.md con la comparación."""
-    path = OUT_DIR / "comparison_report.md"
+    path = DOCS_DIR / "comparison_report.md"
     lines = [
         f"# Comparison Report — Mejoras LUR",
         f"**Fecha:** {datetime.now().strftime('%Y-%m-%d %H:%M')}",

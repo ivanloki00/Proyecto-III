@@ -17,15 +17,15 @@ log = logging.getLogger(__name__)
 ROOT      = Path(__file__).resolve().parents[2]
 DATA_RAW  = ROOT / "data" / "raw"
 DATA_INT  = ROOT / "data" / "interim"
-OUT_DIR   = ROOT / "outputs" / "LUR"
+MODELS_DIR = ROOT / "outputs" / "models"   # modelos .pkl
 
-MODEL_PM25_PKL = OUT_DIR / "lur_model_PM25.pkl"
-MODEL_PM10_PKL = OUT_DIR / "lur_model_PM10.pkl"
+MODEL_PM25_PKL = MODELS_DIR / "lur_model_PM25.pkl"
+MODEL_PM10_PKL = MODELS_DIR / "lur_model_PM10.pkl"
 
 STREETS_GPKG   = DATA_INT / "streets_with_traffic.gpkg"
 BUILDINGS_GPKG = DATA_RAW / "buildings_liverpool.gpkg"
 LANDUSE_GPKG   = DATA_RAW / "landuse_liverpool.gpkg"
-OUT_GEOJSON    = OUT_DIR / "liverpool_pollution_map.geojson"
+OUT_GEOJSON    = ROOT / "outputs" / "maps" / "liverpool_pollution_map.geojson"
 
 # Variables específicas que seleccionaron los modelos
 # (En caso de cambiar, se leerán del .pkl, pero necesitamos 

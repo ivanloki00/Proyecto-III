@@ -23,11 +23,13 @@ log = logging.getLogger(__name__)
 
 ROOT     = Path(__file__).resolve().parents[2]
 DATA_INT = ROOT / "data" / "interim"
-OUT_DIR  = ROOT / "outputs" / "LUR"
+OUT_DIR  = ROOT / "outputs" / "LUR"   # CSVs de resultados
+DOCS_DIR = ROOT / "docs"              # reportes markdown
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
 FEATURES_CSV  = DATA_INT / "lur_features.csv"
-REPORT_PATH   = OUT_DIR / "feature_selection_report.md"
+REPORT_PATH   = DOCS_DIR / "feature_selection_report.md"
 
 BUFFER_RADII  = [50, 100, 250, 500]
 TARGETS       = ["PM2.5", "PM10"]

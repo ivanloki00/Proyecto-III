@@ -43,8 +43,12 @@ log = logging.getLogger(__name__)
 
 ROOT      = Path(__file__).resolve().parents[2]
 DATA_INT  = ROOT / "data" / "interim"
-OUT_DIR   = ROOT / "outputs" / "LUR"
+OUT_DIR    = ROOT / "outputs" / "LUR"          # CSVs de resultados
+MODELS_DIR = ROOT / "outputs" / "models"       # modelos .pkl
+FIG_DIR    = ROOT / "outputs" / "figures" / "lur"  # imágenes diagnóstico
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+MODELS_DIR.mkdir(parents=True, exist_ok=True)
+FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 FEATURES_CSV = DATA_INT / "lur_features.csv"
 SENSORS_GPKG = DATA_INT / "sensores_snapped.gpkg"
@@ -520,7 +524,7 @@ def plot_diagnostics(y_true, y_pred_lr, y_pred_rf, residuals_lr,
              verticalalignment="center", transform=ax6.transAxes,
              bbox=dict(boxstyle="round,pad=0.5", facecolor="lightyellow"))
 
-    out_path = OUT_DIR / f"diagnostics_{target.replace('.','')}.png"
+    out_path = FIG_DIR / f"diagnostics_{target.replace('.','')}.png"
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     log.info(f"  Gráfico guardado → {out_path}")
@@ -846,7 +850,7 @@ def main():
             "n_sensors":   df_work["sensor_id"].nunique(),
         }
         tag = target.replace(".", "")
-        pkl_path = OUT_DIR / f"lur_model_{tag}.pkl"
+        pkl_path = MODELS_DIR / f"lur_model_{tag}.pkl"
         with open(pkl_path, "wb") as f:
             pickle.dump(model_info, f)
         log.info(f"  Modelo guardado -> {pkl_path}")

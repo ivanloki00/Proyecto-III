@@ -47,9 +47,12 @@ log = logging.getLogger(__name__)
 
 ROOT        = Path(__file__).resolve().parents[2]
 DATA_INT    = ROOT / "data" / "interim"
-OUT_DIR     = ROOT / "outputs" / "LUR"
-FIG_DIR     = OUT_DIR / "figures"
+OUT_DIR  = ROOT / "outputs" / "LUR"              # CSVs de resultados
+FIG_DIR  = ROOT / "outputs" / "figures" / "lur"  # imágenes
+DOCS_DIR = ROOT / "docs"                          # reportes markdown
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 FIG_DIR.mkdir(parents=True, exist_ok=True)
+DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
 FEATURES_CSV = DATA_INT / "lur_features.csv"
 SENSORS_GPKG = DATA_INT / "sensores_snapped.gpkg"
@@ -321,7 +324,7 @@ def save_validation_report(
     n_sensors: int,
 ):
     """Escribe outputs/validation_report.md."""
-    path = OUT_DIR / "validation_report.md"
+    path = DOCS_DIR / "validation_report.md"
 
     def _fmt_outliers(df, target_label):
         if df.empty:

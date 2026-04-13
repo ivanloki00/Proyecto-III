@@ -35,9 +35,13 @@ def find_root() -> Path:
     raise RuntimeError("No se encontró el directorio ROOT del proyecto.")
 
 ROOT = find_root()
-FIGURES_DIR = ROOT / "outputs" / "LUR" / "figures"
+FIGURES_DIR = ROOT / "outputs" / "figures" / "lur"  # imágenes
+MODELS_DIR  = ROOT / "outputs" / "models"            # modelos .pkl
+OUTPUTS_DIR = ROOT / "outputs" / "LUR"               # CSVs de resultados
+DOCS_DIR    = ROOT / "docs"                           # reportes markdown
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-OUTPUTS_DIR = ROOT / "outputs" / "LUR"
+MODELS_DIR.mkdir(parents=True, exist_ok=True)
+DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UTILIDADES
@@ -71,7 +75,7 @@ def load_loocv() -> pd.DataFrame:
 
 
 def load_model(target_key: str) -> dict:
-    p = OUTPUTS_DIR / f"lur_model_{target_key}.pkl"
+    p = MODELS_DIR / f"lur_model_{target_key}.pkl"
     m = joblib.load(p)
     log.info("Modelo cargado: %s (features=%s)", target_key, m["features"])
     return m
@@ -299,7 +303,7 @@ def plot_mapa_residuos(loocv: pd.DataFrame, target: str, target_key: str) -> Pat
 def check_maps_exist() -> bool:
     """Retorna True si ambos mapas existen y pesan > 100 KB (se consideran válidos)."""
     for t in ["PM25", "PM10"]:
-        p = OUTPUTS_DIR / f"map_{t}.png"
+        p = FIGURES_DIR / f"map_{t}.png"
         if not p.exists() or p.stat().st_size < 100_000:
             return False
     return True
@@ -506,13 +510,13 @@ def main():
     if check_maps_exist():
         log.info("Mapas de polución ya existen y son válidos — omitiendo regeneración.")
         for t in ["PM25", "PM10"]:
-            p = OUTPUTS_DIR / f"map_{t}.png"
+            p = FIGURES_DIR / f"map_{t}.png"
             produced.append((p, f"Mapa de polución {t} (preexistente, válido)"))
     else:
         log.warning("Mapas de polución no encontrados o insuficientes — ejecutar plotearmapa.py manualmente.")
 
     # ── Tarea 3: Resumen ejecutivo ────────────────────────────────────────────
-    summary_path = OUTPUTS_DIR / "model_summary.md"
+    summary_path = DOCS_DIR / "model_summary.md"
     summary_path.write_text(SUMMARY_TEMPLATE, encoding="utf-8")
     log.info("Guardado: %s", summary_path)
     produced.append((summary_path, "Resumen ejecutivo del modelo LUR"))
