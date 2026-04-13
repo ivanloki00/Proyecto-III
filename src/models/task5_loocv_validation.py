@@ -114,7 +114,14 @@ def build_design_matrix(df_all: pd.DataFrame, target: str) -> pd.DataFrame:
                 rec[feat] = buf_row[base].iloc[0]
         rows.append(rec)
     result = pd.DataFrame(rows).set_index("sensor_id")
-    result = result.replace([np.inf, -np.inf], np.nan).fillna(0)
+    result = result.replace([np.inf, -np.inf], np.nan)
+    # CORRECCIÓN A3: distancias NaN → centinela, no 0
+    dist_cols = [c for c in result.columns if c.startswith("dist_")]
+    for dc in dist_cols:
+        max_val = result[dc].max()
+        fill_val = max_val * 1.5 if (pd.notna(max_val) and max_val > 0) else 9999.0
+        result[dc] = result[dc].fillna(fill_val)
+    result = result.fillna(0)
     return result
 
 
@@ -493,10 +500,18 @@ def main():
     log.info(f"  PM10  LOOCV → R²={res_10['r2']:.4f}, RMSE={res_10['rmse']:.4f}, "
              f"MAE={res_10['mae']:.4f}, MAPE={res_10['mape']:.2f}%")
 
-    # 4. Full-sample Ridge (para diagnósticos de residuos)
-    log.info("  Ajustando Ridge full-sample para diagnósticos ...")
-    _, full_resid_25 = full_sample_ridge(X_25, y_25)
-    _, full_resid_10 = full_sample_ridge(X_10, y_10)
+    # 4. Residuos LOOCV para diagnósticos
+    # CORRECCIÓN A1: los tests estadísticos se aplican sobre residuos LOOCV,
+    # no sobre residuos full-sample. El full-sample ve todos los datos al ajustar,
+    # por lo que sus residuos están sesgados a la baja y los tests son anticonservadores.
+    log.info("  Usando residuos LOOCV para diagnósticos estadísticos ...")
+    full_resid_25 = res_25["residuals"]
+    full_resid_10 = res_10["residuals"]
+
+    # Ajuste full-sample solo para loggear el alpha elegido por RidgeCV
+    log.info("  Ajustando Ridge full-sample (solo para info de alpha) ...")
+    _, _ = full_sample_ridge(X_25, y_25)
+    _, _ = full_sample_ridge(X_10, y_10)
 
     # Coordenadas alineadas con sensor_ids
     if "sensor_id" in sensors_gdf.columns:

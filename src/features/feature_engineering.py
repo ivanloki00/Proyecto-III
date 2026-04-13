@@ -40,6 +40,19 @@ BUFFER_RADII = [50, 100, 250, 500]   # metros
 LIVERPOOL_CENTRE_X = 335000.0
 LIVERPOOL_CENTRE_Y = 390000.0
 
+# C3 — Fuentes puntuales en EPSG:27700
+# Coordenadas obtenidas de OS Maps / Google Maps y convertidas a BNG
+POINT_SOURCES = {
+    # Puerto de Liverpool (Royal Albert Dock centroid)
+    "dist_port_m":       (334300.0, 389700.0),
+    # Túnel Queensway (entrada Birkenhead, salida Liverpool)
+    "dist_tunnel_m":     (333600.0, 390100.0),
+    # Liverpool Lime Street Station
+    "dist_station_m":    (335900.0, 390600.0),
+    # Liverpool Airport (fuente de emisiones de aviación)
+    "dist_airport_m":    (334900.0, 383700.0),
+}
+
 # Categorías de jerarquía viaria que queremos desagregar
 HIGHWAY_CATS = {
     "motorway":    ["motorway", "motorway_link"],
@@ -192,6 +205,9 @@ def compute_features_for_sensor(row, streets, buildings, landuse, radius) -> dic
     feat["intersections_count"] = count_intersections_in_buffer(streets_in, buf)
 
     # ── Distancia al centro de Liverpool ─────────────
+    # NOTA A2: esta variable NO depende del radio del buffer — es una propiedad
+    # del sensor, no del entorno a N metros. Se calcula aquí por completitud del
+    # registro, pero en lur_model.py se trata como variable sin escala de buffer.
     centre_x, centre_y = LIVERPOOL_CENTRE_X, LIVERPOOL_CENTRE_Y
     dx = row.geometry.x - centre_x
     dy = row.geometry.y - centre_y
@@ -217,6 +233,13 @@ def compute_features_for_sensor(row, streets, buildings, landuse, radius) -> dic
             sub_lu = landuse.iloc[0:0]
         feat[f"landuse_{lu_cat}_m2"]    = clip_and_area(sub_lu, buf)
         feat[f"landuse_{lu_cat}_ratio"] = feat[f"landuse_{lu_cat}_m2"] / buf_area if buf_area > 0 else 0.0
+
+    # ── C3: Distancias a fuentes puntuales ───────────────────
+    # (tampoco dependen del buffer — son propiedades del sensor)
+    from shapely.geometry import Point
+    for source_name, (sx, sy) in POINT_SOURCES.items():
+        source_pt = Point(sx, sy)
+        feat[source_name] = float(row.geometry.distance(source_pt))
 
     # ── Distancia a zona industrial más cercana ──
     industrial_tags = LANDUSE_CATS["industrial"]

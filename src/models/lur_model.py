@@ -22,10 +22,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
-from sklearn.linear_model import LinearRegression, RidgeCV
+from sklearn.linear_model import LinearRegression, RidgeCV, ElasticNetCV  # E3
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.model_selection import LeaveOneOut
 from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.cluster import KMeans                                          # E1
 import statsmodels.api as sm
 from statsmodels.stats.diagnostic import het_breuschpagan
 from statsmodels.stats.outliers_influence import variance_inflation_factor
@@ -44,13 +45,17 @@ OUT_DIR.mkdir(exist_ok=True)
 
 FEATURES_CSV = DATA_INT / "lur_features.csv"
 SENSORS_GPKG = DATA_INT / "sensores_snapped.gpkg"
+MONTHLY_CSV  = DATA_INT / "sensores_monthly.csv"
+METEO_CSV    = DATA_INT / "meteo_monthly.csv"
+ELEV_CSV     = DATA_INT / "sensor_elevation.csv"
 
 BUFFER_RADII   = [50, 100, 250, 500]
 TARGETS        = ["PM2.5", "PM10"]
 VIF_THRESHOLD  = 5.0
 P_THRESHOLD    = 0.10   # relajado un poco dado n=20
+USE_PANEL      = True   # True → entrenar sobre datos mensuales (n~240 vs n=20)
 
-# Variables base (sin prefijo de buffer)
+# Variables base que SÍ dependen del radio del buffer (se someten a selección de escala)
 BASE_VARS = [
     "aadf_total_sum", "aadf_total_mean", "aadf_total_max",
     "road_length_total_m", "road_length_motorway_m", "road_length_primary_m",
@@ -61,8 +66,79 @@ BASE_VARS = [
     "landuse_residential_m2", "landuse_residential_ratio",
     "landuse_commercial_m2", "landuse_commercial_ratio",
     "landuse_green_m2", "landuse_green_ratio",
-    "dist_industrial_m",
 ]
+
+# Variables de sensor que NO dependen del buffer (propiedad del punto, no del entorno)
+# CORRECCIÓN A2: dist_industrial_m y dist_centre_m son idénticas para los 4 buffers
+# del mismo sensor. No tiene sentido "seleccionar escala" para ellas — se añaden
+# directamente como candidatas al filtro p-value/VIF sin pasar por select_best_buffer.
+SENSOR_LEVEL_VARS = [
+    "dist_industrial_m",
+    "dist_centre_m",
+    # C3 — fuentes puntuales
+    "dist_port_m",
+    "dist_tunnel_m",
+    "dist_station_m",
+    "dist_airport_m",
+]
+
+
+# ═══════════════════════════════════════════════════
+# 0. Panel: fusión de datos mensuales + espaciales
+# ═══════════════════════════════════════════════════
+
+def build_panel_dataset(df_spatial: pd.DataFrame, target: str) -> pd.DataFrame:
+    """
+    Construye el dataset panel fusionando:
+      - df_spatial    : features espaciales (1 fila/sensor) de select_best_buffer
+      - sensores_monthly.csv : observaciones mensuales (sensor × mes)
+      - meteo_monthly.csv   : controles meteo (temperatura, viento, lluvia) por mes
+      - sensor_elevation.csv: elevación por sensor
+
+    Resultado: ~20 sensores × ~12 meses = ~240 filas.
+    Si algún archivo no existe, avisa y devuelve df_spatial sin cambios.
+    """
+    if not MONTHLY_CSV.exists():
+        log.warning("  [PANEL] sensores_monthly.csv no encontrado — usando datos anuales (n=20)")
+        return df_spatial
+
+    df_monthly = pd.read_csv(MONTHLY_CSV)
+    if target not in df_monthly.columns:
+        log.warning(f"  [PANEL] '{target}' no encontrado en sensores_monthly.csv — usando datos anuales")
+        return df_spatial
+
+    # Quitar columnas target anuales para no contaminar el join
+    drop_targets = [t for t in ["PM2.5", "PM10"] if t in df_spatial.columns]
+    df_space = df_spatial.drop(columns=drop_targets)
+
+    # Join: observaciones mensuales + features espaciales
+    df_panel = df_monthly[["sensor_id", "year_month", target]].merge(
+        df_space, on="sensor_id", how="inner"
+    )
+    log.info(f"  [PANEL] Join espacial: {len(df_panel)} filas ({df_panel['sensor_id'].nunique()} sensores)")
+
+    # Controles meteorológicos (temperatura, viento, lluvia)
+    if METEO_CSV.exists():
+        df_meteo = pd.read_csv(METEO_CSV)[
+            ["year_month", "air_temperature_mean", "wind_speed_mean", "rain_days"]
+        ]
+        df_panel = df_panel.merge(df_meteo, on="year_month", how="left")
+        n_meteo = df_panel["wind_speed_mean"].notna().sum()
+        log.info(f"  [PANEL] Meteo mergeada: {n_meteo}/{len(df_panel)} filas con datos")
+
+    # Elevación del sensor
+    if ELEV_CSV.exists():
+        df_elev = pd.read_csv(ELEV_CSV)[["sensor_id", "elevation_m"]]
+        df_panel = df_panel.merge(df_elev, on="sensor_id", how="left")
+        med_elev = df_panel["elevation_m"].median()
+        df_panel["elevation_m"] = df_panel["elevation_m"].fillna(med_elev)
+
+    log.info(
+        f"  [PANEL] Dataset final: {len(df_panel)} filas, "
+        f"{df_panel['sensor_id'].nunique()} sensores, "
+        f"columnas={list(df_panel.columns)}"
+    )
+    return df_panel
 
 
 # ═══════════════════════════════════════════════════
@@ -71,13 +147,15 @@ BASE_VARS = [
 
 def select_best_buffer(df: pd.DataFrame, target: str) -> pd.DataFrame:
     """
-    Para cada variable, elige el buffer con la mayor |correlación| con target.
-    Devuelve un DataFrame de 20 filas (1 por sensor) con las mejores variables.
+    Para cada variable de BASE_VARS, elige el buffer con la mayor |correlación| con target.
+    Las variables de SENSOR_LEVEL_VARS se añaden directamente (no dependen del buffer).
+    Devuelve un DataFrame de N filas (1 por sensor) con las mejores variables.
     """
     log.info(f"  Seleccionando escala óptima para {target} ...")
 
-    best_records = {}   # var_name -> (best_buffer, corr, series)
+    best_records = {}   # col_name -> (best_buffer, base_var, corr)
 
+    # ── Variables con escala de buffer ──────────────────────────────
     for var in BASE_VARS:
         best_corr = -1
         best_buf  = None
@@ -94,11 +172,28 @@ def select_best_buffer(df: pd.DataFrame, target: str) -> pd.DataFrame:
                 "buffer": best_buf,
                 "base_var": var,
                 "corr": best_corr,
+                "sensor_level": False,
             }
+
+    # ── CORRECCIÓN A2: variables sin buffer — se toman del primer buffer (son idénticas) ──
+    base_buf = BUFFER_RADII[0]
+    for var in SENSOR_LEVEL_VARS:
+        sub = df[df["buffer_m"] == base_buf]
+        if var not in sub.columns or sub[var].std() == 0:
+            continue
+        corr = abs(sub[[var, target]].corr().iloc[0, 1])
+        if not np.isnan(corr) and corr > 0.05:
+            best_records[var] = {
+                "buffer": base_buf,
+                "base_var": var,
+                "corr": corr,
+                "sensor_level": True,
+            }
+            log.info(f"  Variable sensor-level '{var}': |r|={corr:.3f} (sin selección de escala)")
 
     log.info(f"  Variables retenidas tras selección de escala: {len(best_records)}")
 
-    # Construir tabla pivotada: sensor × mejor variable
+    # ── Construir tabla pivotada: sensor × mejor variable ───────────
     pivot_rows = []
     for _, row_sensor in df[df["buffer_m"] == BUFFER_RADII[0]].iterrows():
         sid = row_sensor["sensor_id"]
@@ -110,7 +205,6 @@ def select_best_buffer(df: pd.DataFrame, target: str) -> pd.DataFrame:
 
     result = pd.DataFrame(pivot_rows)
 
-    # Log correlaciones
     corr_summary = {k: round(v["corr"], 3) for k, v in best_records.items()}
     log.info(f"  Correlaciones: {corr_summary}")
     return result
@@ -181,6 +275,129 @@ def loocv(model_class, X: np.ndarray, y: np.ndarray, log_transform: bool = False
     r2   = r2_score(y, y_pred)
     rmse = np.sqrt(mean_squared_error(y, y_pred))
     return {"r2_cv": r2, "rmse_cv": rmse, "y_pred": y_pred}
+
+
+# ═══════════════════════════════════════════════════
+# 3b. Leave-One-Sensor-Out CV (para datos panel)
+# ═══════════════════════════════════════════════════
+
+def loocv_panel(model_class, X: np.ndarray, y: np.ndarray,
+                sensor_ids: np.ndarray, **kwargs) -> dict:
+    """
+    Leave-One-Sensor-Out CV para datos panel.
+    Deja fuera TODAS las observaciones de un sensor a la vez — evita
+    fuga de información temporal entre meses del mismo sensor.
+    """
+    unique_sensors = np.unique(sensor_ids)
+    y_pred = np.zeros_like(y, dtype=float)
+
+    for sid in unique_sensors:
+        test_mask  = sensor_ids == sid
+        train_mask = ~test_mask
+        if train_mask.sum() < 2:
+            y_pred[test_mask] = y[train_mask].mean() if train_mask.sum() > 0 else y.mean()
+            continue
+        if model_class is None:
+            m = kwargs["instance_factory"]()
+        else:
+            m = model_class(**{k: v for k, v in kwargs.items() if k != "instance_factory"})
+        m.fit(X[train_mask], y[train_mask])
+        y_pred[test_mask] = m.predict(X[test_mask])
+
+    r2   = r2_score(y, y_pred)
+    rmse = np.sqrt(mean_squared_error(y, y_pred))
+    return {"r2_cv": r2, "rmse_cv": rmse, "y_pred": y_pred}
+
+
+# ═══════════════════════════════════════════════════
+# E1. Spatial Cross-Validation (Leave-Cluster-Out)
+# ═══════════════════════════════════════════════════
+
+def spatial_cv(model_class, X: np.ndarray, y: np.ndarray,
+               coords: np.ndarray, n_clusters: int = 4, **kwargs) -> dict:
+    """
+    Leave-Cluster-Out CV: agrupa los sensores en n_clusters zonas geográficas
+    mediante K-Means y deja fuera un cluster entero en cada fold.
+
+    Esto es más honesto que LOOCV cuando los sensores están espacialmente
+    agrupados: el modelo no puede "ver" el entorno geográfico del punto test.
+
+    Args:
+        n_clusters: número de grupos espaciales. Con n=20 sensores, 4 clusters
+                    → ~5 sensores por fold. Con n>40 usar 5-6 clusters.
+    """
+    if len(y) < n_clusters * 2:
+        log.warning(f"  Spatial CV: n={len(y)} muy pequeño para {n_clusters} clusters → usando LOOCV")
+        return loocv(model_class, X, y, **kwargs)
+
+    km = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    cluster_labels = km.fit_predict(coords)
+
+    y_pred = np.zeros_like(y, dtype=float)
+    for cluster_id in range(n_clusters):
+        test_mask  = cluster_labels == cluster_id
+        train_mask = ~test_mask
+        if train_mask.sum() < 3:
+            # Cluster con muy pocos datos de entrenamiento → saltar
+            y_pred[test_mask] = y[train_mask].mean()
+            continue
+        if model_class is None:
+            m = kwargs["instance_factory"]()
+        else:
+            m = model_class(**{k: v for k, v in kwargs.items() if k != "instance_factory"})
+        m.fit(X[train_mask], y[train_mask])
+        y_pred[test_mask] = m.predict(X[test_mask])
+
+    r2   = r2_score(y, y_pred)
+    rmse = np.sqrt(mean_squared_error(y, y_pred))
+    log.info(f"  Spatial CV ({n_clusters} clusters): R²={r2:.4f}, RMSE={rmse:.3f}")
+    return {"r2_cv": r2, "rmse_cv": rmse, "y_pred": y_pred, "method": "spatial_cv"}
+
+
+# ═══════════════════════════════════════════════════
+# E2. Bootstrap Prediction Intervals
+# ═══════════════════════════════════════════════════
+
+def bootstrap_prediction_intervals(
+    model_class, X_train: np.ndarray, y_train: np.ndarray,
+    X_pred: np.ndarray, n_boot: int = 200,
+    alpha: float = 0.10, **kwargs
+) -> dict:
+    """
+    Intervalos de predicción via bootstrap paramétrico.
+
+    Procedimiento:
+      1. Para cada iteración b: muestrear n sensores con reemplazo, ajustar modelo.
+      2. Predecir X_pred con el modelo b.
+      3. El intervalo (1-alpha) se obtiene de los percentiles de las B predicciones.
+
+    Returns dict con claves: mean, lower, upper (arrays de len X_pred)
+    """
+    rng = np.random.default_rng(42)
+    n   = len(y_train)
+    preds = np.zeros((n_boot, len(X_pred)))
+
+    for b in range(n_boot):
+        idx = rng.integers(0, n, size=n)
+        Xb, yb = X_train[idx], y_train[idx]
+        if len(np.unique(yb)) < 2:
+            preds[b] = y_train.mean()
+            continue
+        if model_class is None:
+            m = kwargs["instance_factory"]()
+        else:
+            m = model_class(**{k: v for k, v in kwargs.items() if k != "instance_factory"})
+        try:
+            m.fit(Xb, yb)
+            preds[b] = m.predict(X_pred)
+        except Exception:
+            preds[b] = y_train.mean()
+
+    lo = np.percentile(preds, 100 * alpha / 2,     axis=0)
+    hi = np.percentile(preds, 100 * (1 - alpha/2), axis=0)
+    mu = preds.mean(axis=0)
+    log.info(f"  Bootstrap ({n_boot} iter, α={alpha}): intervalo medio ±{(hi-lo).mean()/2:.2f} µg/m³")
+    return {"mean": mu, "lower": lo, "upper": hi}
 
 
 # ═══════════════════════════════════════════════════
@@ -325,27 +542,81 @@ def main():
         # ── 5.1  Selección de escala ──
         df_best = select_best_buffer(df_all, target)
 
-        feature_cols = [c for c in df_best.columns if c not in ["sensor_id", "PM2.5", "PM10"]]
-        X_all = df_best[feature_cols].copy()
-        y = df_best[target].copy()
+        # ── 5.2  Filtro p-value — sobre medias anuales por sensor (señal espacial pura) ──
+        # IMPORTANTE: la selección de features usa SIEMPRE n=20 (1 fila por sensor),
+        # no el panel completo. Razón: el LUR captura variación ESPACIAL entre sensores.
+        # Si filtramos sobre n=217, el test de p-value detecta también variación TEMPORAL
+        # (estacional) dentro de cada sensor, seleccionando features espurias que no
+        # generalizan a nuevas ubicaciones.
+        spatial_feature_cols = [c for c in df_best.columns
+                                 if c not in ("sensor_id", "PM2.5", "PM10")]
+        X_spatial = df_best[spatial_feature_cols].copy()
+        y_spatial = df_best[target].copy()
 
-        # Reemplazar NaN/Inf
-        X_all = X_all.replace([np.inf, -np.inf], np.nan).fillna(0)
+        # Centinela de distancias sobre datos anuales (mismo criterio que antes)
+        X_spatial = X_spatial.replace([np.inf, -np.inf], np.nan)
+        for dc in [c for c in X_spatial.columns if c.startswith("dist_")]:
+            max_val = X_spatial[dc].max()
+            fill_val = max_val * 1.5 if (pd.notna(max_val) and max_val > 0) else 9999.0
+            X_spatial[dc] = X_spatial[dc].fillna(fill_val)
+        X_spatial = X_spatial.fillna(0)
 
-        # ── 5.2  Filtro p-value ──
-        kept_pval = filter_by_pvalue(X_all, y)
+        kept_pval = filter_by_pvalue(X_spatial, y_spatial)
         if len(kept_pval) == 0:
             log.warning(f"  Ninguna variable significativa para {target}. Usando top 5 por |correlación|.")
-            corrs = X_all.corrwith(y).abs().sort_values(ascending=False)
+            corrs = X_spatial.corrwith(y_spatial).abs().sort_values(ascending=False)
             kept_pval = corrs.head(5).index.tolist()
 
-        X_sel = X_all[kept_pval]
+        # ── 5.3  Filtro VIF — también sobre medias anuales ──
+        final_vars_spatial = filter_by_vif(X_spatial[kept_pval])
+        if len(final_vars_spatial) == 0:
+            final_vars_spatial = kept_pval[:1]
 
-        # ── 5.3  Filtro VIF ──
-        final_vars = filter_by_vif(X_sel)
-        if len(final_vars) == 0:
-            final_vars = kept_pval[:1]
-        X_final = X_sel[final_vars]
+        log.info(f"  Variables espaciales seleccionadas para {target}: {final_vars_spatial}")
+
+        # ── 5.0  PANEL: construir dataset con las features espaciales ya seleccionadas ──
+        # Controles temporales (meteo) se añaden siempre como controles, no pasan por
+        # el filtro de selección — son confounders conocidos, no predictores LUR.
+        METEO_CONTROLS = ["air_temperature_mean", "wind_speed_mean", "rain_days"]
+
+        if USE_PANEL:
+            df_work = build_panel_dataset(df_best, target)
+        else:
+            df_work = df_best.copy()
+
+        is_panel = "year_month" in df_work.columns
+        if is_panel:
+            sensor_ids_arr = df_work["sensor_id"].values
+            # features = LUR espaciales seleccionadas + controles meteo presentes en el panel
+            meteo_present = [c for c in METEO_CONTROLS if c in df_work.columns]
+            final_vars = final_vars_spatial + meteo_present
+            log.info(
+                f"  [PANEL] n={len(df_work)} ({df_work['sensor_id'].nunique()} sensores × meses) | "
+                f"features LUR: {final_vars_spatial} | controles meteo: {meteo_present}"
+            )
+        else:
+            sensor_ids_arr = None
+            final_vars = final_vars_spatial
+            log.info(f"  [ANUAL] n={len(df_work)}")
+
+        # Construir X e y finales sobre el dataset de trabajo (panel o anual)
+        # Columnas faltantes en df_work (ej: feature espacial no mergeada) → 0
+        missing = [v for v in final_vars if v not in df_work.columns]
+        if missing:
+            log.warning(f"  Variables no encontradas en df_work, se imputan a 0: {missing}")
+            for m in missing:
+                df_work[m] = 0.0
+
+        X_final = df_work[final_vars].copy()
+        y = df_work[target].copy()
+
+        # Centinela de distancias (ahora sobre el dataset de trabajo completo)
+        X_final = X_final.replace([np.inf, -np.inf], np.nan)
+        for dc in [c for c in X_final.columns if c.startswith("dist_")]:
+            max_val = X_final[dc].max()
+            fill_val = max_val * 1.5 if (pd.notna(max_val) and max_val > 0) else 9999.0
+            X_final[dc] = X_final[dc].fillna(fill_val)
+        X_final = X_final.fillna(0)
 
         log.info(f"  Variables finales para {target}: {final_vars}")
 
@@ -353,35 +624,57 @@ def main():
         X_np = X_final.values
         y_np = y.values
 
+        # Función CV según tipo de datos
+        def _cv(model_class, **kwargs):
+            if is_panel:
+                return loocv_panel(model_class, X_np, y_np, sensor_ids_arr, **kwargs)
+            else:
+                return loocv(model_class, X_np, y_np, **kwargs)
+
         # Definición de candidatos
         ridge_alphas = [0.01, 0.1, 1.0, 10.0, 100.0]
 
         candidates = {
             "LinearRegression": {
-                "res": loocv(LinearRegression, X_np, y_np),
+                "res": _cv(LinearRegression),
                 "factory": lambda: LinearRegression(),
                 "model_type": "linear",
             },
             "Ridge": {
-                "res": loocv(None, X_np, y_np,
-                             instance_factory=lambda: RidgeCV(alphas=ridge_alphas, cv=None)),
+                "res": _cv(None, instance_factory=lambda: RidgeCV(alphas=ridge_alphas, cv=None)),
                 "factory": lambda: RidgeCV(alphas=ridge_alphas, cv=None).fit(X_np, y_np),
                 "model_type": "linear",
             },
+            # E3 — Elastic Net (sin random_state — no es parámetro válido de ElasticNetCV)
+            "ElasticNet": {
+                "res": _cv(None, instance_factory=lambda: ElasticNetCV(
+                    l1_ratio=[0.1, 0.5, 0.7, 0.9, 1.0],
+                    alphas=ridge_alphas,
+                    cv=min(5, df_work["sensor_id"].nunique() - 1),
+                    max_iter=5000,
+                )),
+                "factory": lambda: ElasticNetCV(
+                    l1_ratio=[0.1, 0.5, 0.7, 0.9, 1.0],
+                    alphas=ridge_alphas,
+                    cv=min(5, df_work["sensor_id"].nunique() - 1),
+                    max_iter=5000,
+                ).fit(X_np, y_np),
+                "model_type": "linear",
+            },
             "LogLinear": {
-                "res": loocv(LinearRegression, X_np, y_np, log_transform=True),
+                "res": _cv(LinearRegression, log_transform=True) if not is_panel
+                       else loocv_panel(LinearRegression, X_np, np.log(np.clip(y_np, 1e-9, None)),
+                                        sensor_ids_arr),
                 "factory": lambda: LinearRegression(),
                 "model_type": "linear",
             },
             "RandomForest": {
-                "res": loocv(RandomForestRegressor, X_np, y_np,
-                             n_estimators=200, max_features="sqrt", random_state=42),
+                "res": _cv(RandomForestRegressor, n_estimators=200, max_features="sqrt", random_state=42),
                 "factory": lambda: RandomForestRegressor(n_estimators=200, max_features="sqrt", random_state=42),
                 "model_type": "ensemble",
             },
             "GradientBoosting": {
-                "res": loocv(GradientBoostingRegressor, X_np, y_np,
-                             n_estimators=100, max_depth=3, random_state=42),
+                "res": _cv(GradientBoostingRegressor, n_estimators=100, max_depth=3, random_state=42),
                 "factory": lambda: GradientBoostingRegressor(n_estimators=100, max_depth=3, random_state=42),
                 "model_type": "ensemble",
             },
@@ -431,11 +724,75 @@ def main():
         log.info(f"  Modelo elegido para {target}: {best_name} "
                  f"(R²_CV={best_res['r2_cv']:.4f}, RMSE_CV={best_res['rmse_cv']:.3f})")
 
+        # ── E1: Spatial Cross-Validation ──────────────────────────────────────
+        log.info(f"  Ejecutando Spatial CV (Leave-Cluster-Out) para {target} ...")
+        if is_panel:
+            # Para panel: cluster a nivel sensor, luego dejar fuera todas las filas del cluster
+            unique_sids = np.unique(sensor_ids_arr)
+            sid_coord_map = {}
+            for sid in unique_sids:
+                matches = sensors_gdf[sensors_gdf["sensor_id"] == sid]
+                if len(matches) > 0:
+                    sid_coord_map[sid] = (matches.geometry.iloc[0].x, matches.geometry.iloc[0].y)
+            sensor_coords_arr = np.array([sid_coord_map.get(s, (0.0, 0.0)) for s in unique_sids])
+            n_clust = min(4, max(2, len(unique_sids) // 5))
+            km_s = KMeans(n_clusters=n_clust, random_state=42, n_init=10)
+            sensor_cluster_labels = km_s.fit_predict(sensor_coords_arr)
+            sensor_cluster_map = {sid: sensor_cluster_labels[i] for i, sid in enumerate(unique_sids)}
+            row_clusters = np.array([sensor_cluster_map[s] for s in sensor_ids_arr])
+            sp_pred = np.zeros_like(y_np, dtype=float)
+            for cid in range(n_clust):
+                tmask = row_clusters == cid
+                trmask = ~tmask
+                if trmask.sum() < 3:
+                    sp_pred[tmask] = y_np[trmask].mean()
+                    continue
+                m_sp = RidgeCV(alphas=ridge_alphas, cv=None)
+                m_sp.fit(X_np[trmask], y_np[trmask])
+                sp_pred[tmask] = m_sp.predict(X_np[tmask])
+            spatial_res = {
+                "r2_cv": r2_score(y_np, sp_pred),
+                "rmse_cv": np.sqrt(mean_squared_error(y_np, sp_pred)),
+            }
+            log.info(f"  Spatial CV panel ({n_clust} clusters): R²={spatial_res['r2_cv']:.4f}")
+        else:
+            spatial_res = spatial_cv(
+                None, X_np, y_np, coords,
+                n_clusters=min(4, max(2, len(y_np) // 5)),
+                instance_factory=lambda: RidgeCV(alphas=ridge_alphas, cv=None),
+            )
+        log.info(
+            f"  Spatial CV R²={spatial_res['r2_cv']:.4f}  vs  "
+            f"LOOCV R²={best_res['r2_cv']:.4f}  "
+            f"(diferencia: {best_res['r2_cv'] - spatial_res['r2_cv']:+.4f})"
+        )
+
+        # ── E2: Bootstrap prediction intervals ──
+        log.info(f"  Calculando intervalos bootstrap para {target} ...")
+        boot_intervals = bootstrap_prediction_intervals(
+            None, X_np, y_np, X_np,
+            n_boot=200,
+            instance_factory=lambda: RidgeCV(alphas=ridge_alphas, cv=None),
+        )
+
         # ── 7.  Diagnóstico OLS ──
         ols_model, residuals, bp_pval = diagnostics_ols(X_final, y, "Lineal", target)
 
-        # Moran's I
-        moran = morans_i(residuals.values, coords)
+        # Moran's I — para panel, promediar residuos por sensor antes
+        if is_panel:
+            res_df = pd.DataFrame({"sensor_id": df_work["sensor_id"].values,
+                                   "residual": residuals.values})
+            res_by_sensor = res_df.groupby("sensor_id")["residual"].mean()
+            morans_sids = [s for s in sensors_gdf["sensor_id"] if s in res_by_sensor.index]
+            morans_resids = np.array([res_by_sensor[s] for s in morans_sids])
+            morans_coords = np.array([
+                [sensors_gdf[sensors_gdf["sensor_id"] == s].geometry.iloc[0].x,
+                 sensors_gdf[sensors_gdf["sensor_id"] == s].geometry.iloc[0].y]
+                for s in morans_sids
+            ])
+            moran = morans_i(morans_resids, morans_coords)
+        else:
+            moran = morans_i(residuals.values, coords)
 
         # ── Gráficos (usando ganador vs lineal base) ──
         lr_res = candidates["LinearRegression"]["res"]
@@ -448,44 +805,53 @@ def main():
 
         # Guardar modelo
         model_info = {
-            "model": best_model,
-            "model_name": best_name,
-            "model_type": candidates[best_name]["model_type"],
-            "features": final_vars,
-            "target": target,
-            "r2_cv": best_res["r2_cv"],
-            "rmse_cv": best_res["rmse_cv"],
-            "bp_pvalue": bp_pval,
-            "moran_I": moran["I"],
-            "moran_p": moran["p_value"],
+            "model":       best_model,
+            "model_name":  best_name,
+            "model_type":  candidates[best_name]["model_type"],
+            "features":    final_vars,
+            "target":      target,
+            "r2_cv":       best_res["r2_cv"],
+            "rmse_cv":     best_res["rmse_cv"],
+            "bp_pvalue":   bp_pval,
+            "moran_I":     moran["I"],
+            "moran_p":     moran["p_value"],
+            "r2_spatial_cv":   spatial_res["r2_cv"],
+            "rmse_spatial_cv": spatial_res["rmse_cv"],
+            "bootstrap_lower": boot_intervals["lower"],
+            "bootstrap_upper": boot_intervals["upper"],
+            "is_panel":    is_panel,
+            "n_obs":       len(y_np),
+            "n_sensors":   df_work["sensor_id"].nunique(),
         }
         tag = target.replace(".", "")
         pkl_path = OUT_DIR / f"lur_model_{tag}.pkl"
         with open(pkl_path, "wb") as f:
             pickle.dump(model_info, f)
-        log.info(f"  Modelo guardado → {pkl_path}")
+        log.info(f"  Modelo guardado -> {pkl_path}")
 
         results[target] = {
             "model_info": model_info,
-            "df_best": df_best,
+            "df_best":    df_work,
             "final_vars": final_vars,
         }
 
-    # ── Tabla de comparación de modelos ──
+    # -- Tabla de comparacion de modelos --
     comp_df = pd.DataFrame(comparison_rows).sort_values(["target", "r2_cv"], ascending=[True, False])
     comp_path = OUT_DIR / "model_comparison.csv"
     comp_df.to_csv(comp_path, index=False)
-    log.info(f"\n  Tabla comparativa guardada → {comp_path}")
+    log.info(f"  Tabla comparativa guardada -> {comp_path}")
 
-    # ── Resumen final ──
+    # -- Resumen final --
     log.info(f"\n{'='*60}\n  RESUMEN FINAL\n{'='*60}")
     for t, r in results.items():
         mi = r["model_info"]
+        panel_str = f"(panel n={mi['n_obs']}, {mi['n_sensors']} sensores)" if mi.get("is_panel") else "(anual)"
         log.info(
-            f"  {t}: {mi['model_name']} | R²_CV={mi['r2_cv']:.4f} | RMSE_CV={mi['rmse_cv']:.3f} | "
+            f"  {t} {panel_str}: {mi['model_name']} | "
+            f"R2_CV={mi['r2_cv']:.4f} | RMSE_CV={mi['rmse_cv']:.3f} | "
             f"BP_p={mi['bp_pvalue']:.4f} | Moran_I={mi['moran_I']:.4f} (p={mi['moran_p']:.4f})"
         )
-    log.info(f"\n  Comparación completa:\n{comp_df.to_string(index=False)}")
+    log.info(f"\n  Comparacion completa:\n{comp_df.to_string(index=False)}")
 
     return results
 
