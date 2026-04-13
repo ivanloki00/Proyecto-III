@@ -27,6 +27,9 @@ from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.model_selection import LeaveOneOut
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.cluster import KMeans                                          # E1
+from sklearn.svm import SVR
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 import statsmodels.api as sm
 from statsmodels.stats.diagnostic import het_breuschpagan
 from statsmodels.stats.outliers_influence import variance_inflation_factor
@@ -40,8 +43,8 @@ log = logging.getLogger(__name__)
 
 ROOT      = Path(__file__).resolve().parents[2]
 DATA_INT  = ROOT / "data" / "interim"
-OUT_DIR   = ROOT / "outputs"
-OUT_DIR.mkdir(exist_ok=True)
+OUT_DIR   = ROOT / "outputs" / "LUR"
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 FEATURES_CSV = DATA_INT / "lur_features.csv"
 SENSORS_GPKG = DATA_INT / "sensores_snapped.gpkg"
@@ -51,7 +54,7 @@ ELEV_CSV     = DATA_INT / "sensor_elevation.csv"
 
 BUFFER_RADII   = [50, 100, 250, 500]
 TARGETS        = ["PM2.5", "PM10"]
-VIF_THRESHOLD  = 5.0
+VIF_THRESHOLD  = 10.0
 P_THRESHOLD    = 0.10   # relajado un poco dado n=20
 USE_PANEL      = True   # True → entrenar sobre datos mensuales (n~240 vs n=20)
 
@@ -66,6 +69,7 @@ BASE_VARS = [
     "landuse_residential_m2", "landuse_residential_ratio",
     "landuse_commercial_m2", "landuse_commercial_ratio",
     "landuse_green_m2", "landuse_green_ratio",
+    "traffic_weighted_exposure",
 ]
 
 # Variables de sensor que NO dependen del buffer (propiedad del punto, no del entorno)
@@ -80,6 +84,7 @@ SENSOR_LEVEL_VARS = [
     "dist_tunnel_m",
     "dist_station_m",
     "dist_airport_m",
+    "elevation_m",
 ]
 
 
@@ -126,10 +131,11 @@ def build_panel_dataset(df_spatial: pd.DataFrame, target: str) -> pd.DataFrame:
         n_meteo = df_panel["wind_speed_mean"].notna().sum()
         log.info(f"  [PANEL] Meteo mergeada: {n_meteo}/{len(df_panel)} filas con datos")
 
-    # Elevación del sensor
-    if ELEV_CSV.exists():
+    # Elevación del sensor — sólo añadir si no viene ya de df_space
+    if "elevation_m" not in df_panel.columns and ELEV_CSV.exists():
         df_elev = pd.read_csv(ELEV_CSV)[["sensor_id", "elevation_m"]]
         df_panel = df_panel.merge(df_elev, on="sensor_id", how="left")
+    if "elevation_m" in df_panel.columns:
         med_elev = df_panel["elevation_m"].median()
         df_panel["elevation_m"] = df_panel["elevation_m"].fillna(med_elev)
 
@@ -676,6 +682,22 @@ def main():
             "GradientBoosting": {
                 "res": _cv(GradientBoostingRegressor, n_estimators=100, max_depth=3, random_state=42),
                 "factory": lambda: GradientBoostingRegressor(n_estimators=100, max_depth=3, random_state=42),
+                "model_type": "ensemble",
+            },
+            "LogRidge": {
+                "res": _cv(None, instance_factory=lambda: RidgeCV(alphas=ridge_alphas, cv=None), log_transform=True) if not is_panel
+                       else (lambda _res: dict(_res, y_pred=np.expm1(_res["y_pred"]),
+                                               r2_cv=r2_score(y_np, np.expm1(_res["y_pred"])),
+                                               rmse_cv=np.sqrt(mean_squared_error(y_np, np.expm1(_res["y_pred"]))))
+                             )(loocv_panel(None, X_np, np.log1p(np.clip(y_np, 1e-9, None)),
+                                           sensor_ids_arr,
+                                           instance_factory=lambda: RidgeCV(alphas=ridge_alphas, cv=None))),
+                "factory": lambda: RidgeCV(alphas=ridge_alphas, cv=None),
+                "model_type": "linear",
+            },
+            "SVR": {
+                "res": _cv(None, instance_factory=lambda: Pipeline([("scaler", StandardScaler()), ("svr", SVR(kernel="rbf", C=10, epsilon=0.1))])),
+                "factory": lambda: Pipeline([("scaler", StandardScaler()), ("svr", SVR(kernel="rbf", C=10, epsilon=0.1))]),
                 "model_type": "ensemble",
             },
         }

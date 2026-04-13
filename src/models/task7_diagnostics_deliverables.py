@@ -35,9 +35,9 @@ def find_root() -> Path:
     raise RuntimeError("No se encontró el directorio ROOT del proyecto.")
 
 ROOT = find_root()
-FIGURES_DIR = ROOT / "outputs" / "figures"
+FIGURES_DIR = ROOT / "outputs" / "LUR" / "figures"
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-OUTPUTS_DIR = ROOT / "outputs"
+OUTPUTS_DIR = ROOT / "outputs" / "LUR"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UTILIDADES

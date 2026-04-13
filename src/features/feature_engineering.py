@@ -316,6 +316,17 @@ def main():
     # Unir PM2.5 / PM10
     features_df = features_df.merge(pm_ref, on="sensor_id", how="left")
 
+    # Añadir elevación del sensor (sensor-level, idéntica para todos los buffers)
+    elev_path = DATA_INT / "sensor_elevation.csv"
+    if elev_path.exists():
+        df_elev = pd.read_csv(elev_path)[["sensor_id", "elevation_m"]]
+        features_df = features_df.merge(df_elev, on="sensor_id", how="left")
+        med_elev = features_df["elevation_m"].median()
+        features_df["elevation_m"] = features_df["elevation_m"].fillna(med_elev)
+        logging.info(f"Elevación añadida: {features_df['elevation_m'].notna().sum()}/{len(features_df)} filas con datos")
+    else:
+        logging.warning(f"sensor_elevation.csv no encontrado en {elev_path} — columna elevation_m omitida")
+
     features_df.to_csv(OUT_CSV, index=False)
     logging.info(f"Features guardadas → {OUT_CSV}")
     logging.info(f"Shape: {features_df.shape}")

@@ -16,6 +16,12 @@ import subprocess
 import sys
 import pickle
 import json
+
+# Forzar UTF-8 en stdout/stderr para evitar UnicodeEncodeError en terminales Windows
+if sys.stdout.encoding != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if sys.stderr.encoding != "utf-8":
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 import logging
 from pathlib import Path
 from datetime import datetime
@@ -24,7 +30,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger(__name__)
 
 ROOT    = Path(__file__).resolve().parent
-OUT_DIR = ROOT / "outputs"
+OUT_DIR = ROOT / "outputs" / "LUR"
 
 PYTHON = sys.executable  # mismo intérprete que está ejecutando este script
 

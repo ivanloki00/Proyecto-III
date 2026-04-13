@@ -47,7 +47,7 @@ log = logging.getLogger(__name__)
 
 ROOT        = Path(__file__).resolve().parents[2]
 DATA_INT    = ROOT / "data" / "interim"
-OUT_DIR     = ROOT / "outputs"
+OUT_DIR     = ROOT / "outputs" / "LUR"
 FIG_DIR     = OUT_DIR / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 

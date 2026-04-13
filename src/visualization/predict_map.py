@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 ROOT      = Path(__file__).resolve().parents[2]
 DATA_RAW  = ROOT / "data" / "raw"
 DATA_INT  = ROOT / "data" / "interim"
-OUT_DIR   = ROOT / "outputs"
+OUT_DIR   = ROOT / "outputs" / "LUR"
 
 MODEL_PM25_PKL = OUT_DIR / "lur_model_PM25.pkl"
 MODEL_PM10_PKL = OUT_DIR / "lur_model_PM10.pkl"
