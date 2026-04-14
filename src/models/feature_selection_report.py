@@ -29,7 +29,7 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 DOCS_DIR.mkdir(parents=True, exist_ok=True)
 
 FEATURES_CSV  = DATA_INT / "lur_features.csv"
-REPORT_PATH   = DOCS_DIR / "feature_selection_report.md"
+REPORT_PATH   = DOCS_DIR / "02b_feature_selection_report.md"
 
 BUFFER_RADII  = [50, 100, 250, 500]
 TARGETS       = ["PM2.5", "PM10"]

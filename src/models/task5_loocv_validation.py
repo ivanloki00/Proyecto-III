@@ -324,7 +324,7 @@ def save_validation_report(
     n_sensors: int,
 ):
     """Escribe outputs/validation_report.md."""
-    path = DOCS_DIR / "validation_report.md"
+    path = DOCS_DIR / "04_validation_report.md"
 
     def _fmt_outliers(df, target_label):
         if df.empty:

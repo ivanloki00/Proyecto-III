@@ -516,7 +516,7 @@ def main():
         log.warning("Mapas de polución no encontrados o insuficientes — ejecutar plotearmapa.py manualmente.")
 
     # ── Tarea 3: Resumen ejecutivo ────────────────────────────────────────────
-    summary_path = DOCS_DIR / "model_summary.md"
+    summary_path = DOCS_DIR / "03_model_summary.md"
     summary_path.write_text(SUMMARY_TEMPLATE, encoding="utf-8")
     log.info("Guardado: %s", summary_path)
     produced.append((summary_path, "Resumen ejecutivo del modelo LUR"))

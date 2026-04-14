@@ -104,10 +104,10 @@ Resultados listos para análisis o entrega.
 ### `src/models/` — Modelos
 | Script | Qué hace | Output |
 |--------|----------|--------|
-| `feature_selection_report.py` | Selección de variables por correlación máxima + VIF<10 | `docs/feature_selection_report.md` |
+| `feature_selection_report.py` | Selección de variables por correlación máxima + VIF<10 | `docs/02b_feature_selection_report.md` |
 | `lur_model.py` | **Pipeline principal**: selección de escala, entrenamiento (Ridge, ElasticNet, LogRidge, SVR, RF, GB), LOOCV, diagnósticos | `outputs/models/lur_model_PM*.pkl`, `outputs/LUR/model_comparison.csv`, `outputs/figures/lur/diagnostics_*.png` |
-| `task5_loocv_validation.py` | Validación LOOCV independiente con tests estadísticos (Breusch-Pagan, Shapiro-Wilk, Moran's I) | `outputs/LUR/loocv_results.csv`, `docs/validation_report.md`, `outputs/figures/lur/loocv_obs_vs_pred.png` |
-| `task7_diagnostics_deliverables.py` | Diagnósticos visuales completos: obs vs pred, residuos, importancia de variables, mapas de residuos | `outputs/figures/lur/*.png`, `docs/model_summary.md` |
+| `task5_loocv_validation.py` | Validación LOOCV independiente con tests estadísticos (Breusch-Pagan, Shapiro-Wilk, Moran's I) | `outputs/LUR/loocv_results.csv`, `docs/04_validation_report.md`, `outputs/figures/lur/loocv_obs_vs_pred.png` |
+| `task7_diagnostics_deliverables.py` | Diagnósticos visuales completos: obs vs pred, residuos, importancia de variables, mapas de residuos | `outputs/figures/lur/*.png`, `docs/03_model_summary.md` |
 
 ### `src/visualization/` — Visualización
 | Script | Qué hace | Output |
@@ -165,15 +165,15 @@ Reportes markdown generados automáticamente por los scripts de modelado, más d
 
 | Archivo | Generado por | Qué contiene |
 |---------|-------------|-------------|
-| `validation_report.md` | `task5_loocv_validation.py` | Métricas LOOCV + tests estadísticos |
-| `model_summary.md` | `task7_diagnostics_deliverables.py` | Resumen ejecutivo del modelo |
-| `feature_selection_report.md` | `feature_selection_report.py` | Correlaciones y filtros VIF por variable |
-| `comparison_report.md` | `run_and_compare.py` | Comparativa antes/después de mejoras |
-| `improvement_summary.md` | Manual / A4 agent | Resumen de mejoras aplicadas |
-| `LUR_Pipeline_Analysis_Report.md` | Manual | Análisis técnico del pipeline completo |
-| `Resumen_Ejecutivo_Modelo_LUR.md` | Manual | Resumen ejecutivo para presentación |
-| `Resumen_Detallado_Desarrollo_LUR.md` | Manual | Historial detallado del desarrollo |
-| `PROJECT_STRUCTURE.md` | Este archivo | Guía de estructura del proyecto |
+| `00_project_structure.md` | Este archivo | Guía de estructura del proyecto |
+| `01_resumen_ejecutivo.md` | Manual | Resumen ejecutivo para presentación |
+| `02_pipeline_analysis.md` | Manual | Análisis técnico del pipeline completo |
+| `02b_feature_selection_report.md` | `feature_selection_report.py` | Correlaciones y filtros VIF por variable |
+| `03_model_summary.md` | `task7_diagnostics_deliverables.py` | Resumen del modelo ganador (features, R²) |
+| `04_validation_report.md` | `task5_loocv_validation.py` | Métricas LOOCV + tests estadísticos |
+| `05_comparison_report.md` | `run_and_compare.py` | Comparativa antes/después de mejoras |
+| `06_improvement_summary.md` | Manual / pipeline agent | Resumen de mejoras aplicadas |
+| `07_development_log.md` | Manual | Bitácora técnica detallada del desarrollo |
 
 > Para añadir documentación de un nuevo módulo: crear `docs/{nombre_modulo}.md`.
 

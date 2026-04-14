@@ -245,7 +245,7 @@ def print_comparison(before: dict, after: dict):
 
 def save_comparison_report(before: dict, after: dict, scripts_run: list):
     """Escribe outputs/comparison_report.md con la comparación."""
-    path = DOCS_DIR / "comparison_report.md"
+    path = DOCS_DIR / "05_comparison_report.md"
     lines = [
         f"# Comparison Report — Mejoras LUR",
         f"**Fecha:** {datetime.now().strftime('%Y-%m-%d %H:%M')}",
