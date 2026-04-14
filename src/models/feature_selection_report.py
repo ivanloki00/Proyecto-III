@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 ROOT     = Path(__file__).resolve().parents[2]
 DATA_INT = ROOT / "data" / "interim"
-OUT_DIR  = ROOT / "outputs" / "LUR"   # CSVs de resultados
+OUT_DIR  = ROOT / "data" / "processed" / "LUR"   # CSVs de resultados
 DOCS_DIR = ROOT / "docs"              # reportes markdown
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 DOCS_DIR.mkdir(parents=True, exist_ok=True)

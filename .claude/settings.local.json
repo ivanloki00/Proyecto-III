@@ -66,7 +66,12 @@
       "Bash(cp '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/model_comparison.csv' '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/reports/model_comparison.csv')",
       "Bash(cp '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/validation_report.md' '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/reports/validation_report.md')",
       "Bash(cp '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/comparison_report.md' '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/reports/comparison_report.md')",
-      "Bash(sort find:*)"
+      "Bash(sort find:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:uk-air.defra.gov.uk)",
+      "WebSearch",
+      "Bash(tee \"C:/Users/Ivan/Ciencia de Datos/PROYIII/outputs/logs/lur_final.log\")",
+      "Bash(findstr /C:\"TARGET\" /C:\"LOOCV:\" /C:\"elegido\" /C:\"Filtrando\" /C:\"Error\" /C:\"Traceback\")"
     ]
   }
 }

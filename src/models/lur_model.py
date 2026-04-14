@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 
 ROOT      = Path(__file__).resolve().parents[2]
 DATA_INT  = ROOT / "data" / "interim"
-OUT_DIR    = ROOT / "outputs" / "LUR"          # CSVs de resultados
+OUT_DIR    = ROOT / "data" / "processed" / "LUR"          # CSVs de resultados
 MODELS_DIR = ROOT / "outputs" / "models"       # modelos .pkl
 FIG_DIR    = ROOT / "outputs" / "figures" / "lur"  # imágenes diagnóstico
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -56,7 +56,7 @@ MONTHLY_CSV  = DATA_INT / "sensores_monthly.csv"
 METEO_CSV    = DATA_INT / "meteo_monthly.csv"
 ELEV_CSV     = DATA_INT / "sensor_elevation.csv"
 
-BUFFER_RADII   = [50, 100, 250, 500]
+BUFFER_RADII   = [50, 100, 250, 500, 1000]
 TARGETS        = ["PM2.5", "PM10"]
 VIF_THRESHOLD  = 10.0
 P_THRESHOLD    = 0.10   # relajado un poco dado n=20
@@ -74,6 +74,7 @@ BASE_VARS = [
     "landuse_commercial_m2", "landuse_commercial_ratio",
     "landuse_green_m2", "landuse_green_ratio",
     "traffic_weighted_exposure",
+    "intersections_count",
 ]
 
 # Variables de sensor que NO dependen del buffer (propiedad del punto, no del entorno)
@@ -89,6 +90,8 @@ SENSOR_LEVEL_VARS = [
     "dist_station_m",
     "dist_airport_m",
     "elevation_m",
+    # C4 — densidad de población LSOA
+    "pop_density_km2",
 ]
 
 
@@ -134,6 +137,14 @@ def build_panel_dataset(df_spatial: pd.DataFrame, target: str) -> pd.DataFrame:
         df_panel = df_panel.merge(df_meteo, on="year_month", how="left")
         n_meteo = df_panel["wind_speed_mean"].notna().sum()
         log.info(f"  [PANEL] Meteo mergeada: {n_meteo}/{len(df_panel)} filas con datos")
+
+    # Codificación cíclica del mes — controla estacionalidad
+    if "year_month" in df_panel.columns:
+        df_panel["month_num"] = pd.to_datetime(df_panel["year_month"]).dt.month
+        df_panel["mes_sin"] = np.sin(2 * np.pi * df_panel["month_num"] / 12)
+        df_panel["mes_cos"] = np.cos(2 * np.pi * df_panel["month_num"] / 12)
+        df_panel.drop(columns=["month_num"], inplace=True)
+        log.info("  [PANEL] Estacionalidad cíclica añadida: mes_sin, mes_cos")
 
     # Elevación del sensor — sólo añadir si no viene ya de df_space
     if "elevation_m" not in df_panel.columns and ELEV_CSV.exists():
@@ -202,6 +213,16 @@ def select_best_buffer(df: pd.DataFrame, target: str) -> pd.DataFrame:
             log.info(f"  Variable sensor-level '{var}': |r|={corr:.3f} (sin selección de escala)")
 
     log.info(f"  Variables retenidas tras selección de escala: {len(best_records)}")
+
+    # ── Integrar densidad de población si está disponible ────────────
+    pop_csv = ROOT / "data" / "interim" / "population_density.csv"
+    if pop_csv.exists():
+        df_pop = pd.read_csv(pop_csv)[["sensor_id", "pop_density_km2"]]
+        df = df.merge(df_pop, on="sensor_id", how="left")
+        df["pop_density_km2"] = df["pop_density_km2"].fillna(df["pop_density_km2"].median())
+        log.info(f"  Densidad de población integrada: {df['pop_density_km2'].notna().sum()} filas")
+    else:
+        log.warning("  population_density.csv no encontrado — omitiendo pop_density_km2")
 
     # ── Construir tabla pivotada: sensor × mejor variable ───────────
     pivot_rows = []
@@ -297,9 +318,29 @@ def loocv_panel(model_class, X: np.ndarray, y: np.ndarray,
     Leave-One-Sensor-Out CV para datos panel.
     Deja fuera TODAS las observaciones de un sensor a la vez — evita
     fuga de información temporal entre meses del mismo sensor.
+
+    Parámetros opcionales para spatial lag (anti-data-leakage):
+      coords (np.ndarray (n_sensores, 2)): coordenadas BNG de cada sensor único
+                                           (mismo orden que unique_sensors)
+      sensor_pm_map (dict sensor_id → np.ndarray): PM de ese sensor para cada
+                                                   fila del panel (indexado globalmente)
+      k_neighbors (int): vecinos para el lag, default 3
     """
     unique_sensors = np.unique(sensor_ids)
     y_pred = np.zeros_like(y, dtype=float)
+
+    coords        = kwargs.get("coords", None)
+    sensor_pm_map = kwargs.get("sensor_pm_map", None)
+    k_neighbors   = kwargs.get("k_neighbors", 3)
+    use_spatial_lag = (
+        coords is not None
+        and sensor_pm_map is not None
+        and len(coords) == len(unique_sensors)
+    )
+
+    if use_spatial_lag:
+        log.info(f"  [LOOCV-PANEL] Spatial lag activado (k={k_neighbors})")
+        coord_map = {s: coords[i] for i, s in enumerate(unique_sensors)}
 
     for sid in unique_sensors:
         test_mask  = sensor_ids == sid
@@ -307,12 +348,71 @@ def loocv_panel(model_class, X: np.ndarray, y: np.ndarray,
         if train_mask.sum() < 2:
             y_pred[test_mask] = y[train_mask].mean() if train_mask.sum() > 0 else y.mean()
             continue
+
+        X_train = X[train_mask].copy()
+        X_test  = X[test_mask].copy()
+
+        if use_spatial_lag:
+            train_sensors    = [s for s in unique_sensors if s != sid]
+            test_coord       = coord_map[sid]
+            train_coords_arr = np.array([coord_map[s] for s in train_sensors])
+
+            # Distancias del sensor test a cada sensor de entrenamiento
+            dists = np.sqrt(((train_coords_arr - test_coord) ** 2).sum(axis=1))
+            k_eff = min(k_neighbors, len(train_sensors))
+            nn_sensors = [train_sensors[i] for i in np.argsort(dists)[:k_eff]]
+
+            # Lag del sensor test: media de PM de k vecinos más cercanos (por fila global)
+            # ANTI-LEAKAGE: sólo se usan PM de sensores en el training set
+            test_indices = np.where(test_mask)[0]
+            fallback_mean = np.nanmean(y[train_mask])
+            test_lag = np.array([
+                np.nanmean([sensor_pm_map[ns][gi] for ns in nn_sensors
+                            if ns in sensor_pm_map
+                            and not np.isnan(sensor_pm_map[ns][gi])]
+                           ) if any(
+                               not np.isnan(sensor_pm_map[ns][gi])
+                               for ns in nn_sensors if ns in sensor_pm_map
+                           )
+                else fallback_mean
+                for gi in test_indices
+            ])
+
+            # Lag de cada fila de entrenamiento: media de sus k vecinos (sin incluirse a sí mismo)
+            train_indices = np.where(train_mask)[0]
+            train_lag = np.zeros(len(train_indices))
+            for row_i, gi in enumerate(train_indices):
+                s_i   = sensor_ids[gi]
+                peers = [s for s in train_sensors if s != s_i]
+                if not peers:
+                    peers = train_sensors  # fallback si sólo hay 1 sensor en training
+                peer_dists = np.sqrt((
+                    (np.array([coord_map[p] for p in peers]) - coord_map[s_i]) ** 2
+                ).sum(axis=1))
+                k2  = min(k_neighbors, len(peers))
+                nn2 = [peers[j] for j in np.argsort(peer_dists)[:k2]]
+                vals = [
+                    sensor_pm_map[ns][gi]
+                    for ns in nn2
+                    if ns in sensor_pm_map and not np.isnan(sensor_pm_map[ns][gi])
+                ]
+                train_lag[row_i] = np.nanmean(vals) if vals else fallback_mean
+
+            # Concatenar spatial lag como última columna
+            X_train = np.column_stack([X_train, train_lag])
+            X_test  = np.column_stack([X_test,  test_lag])
+
+        # Excluir kwargs internos antes de pasar al modelo
+        _model_kwargs = {
+            k: v for k, v in kwargs.items()
+            if k not in ("instance_factory", "coords", "sensor_pm_map", "k_neighbors")
+        }
         if model_class is None:
             m = kwargs["instance_factory"]()
         else:
-            m = model_class(**{k: v for k, v in kwargs.items() if k != "instance_factory"})
-        m.fit(X[train_mask], y[train_mask])
-        y_pred[test_mask] = m.predict(X[test_mask])
+            m = model_class(**_model_kwargs)
+        m.fit(X_train, y[train_mask])
+        y_pred[test_mask] = m.predict(X_test)
 
     r2   = r2_score(y, y_pred)
     rmse = np.sqrt(mean_squared_error(y, y_pred))
@@ -587,7 +687,8 @@ def main():
         # ── 5.0  PANEL: construir dataset con las features espaciales ya seleccionadas ──
         # Controles temporales (meteo) se añaden siempre como controles, no pasan por
         # el filtro de selección — son confounders conocidos, no predictores LUR.
-        METEO_CONTROLS = ["air_temperature_mean", "wind_speed_mean", "rain_days"]
+        METEO_CONTROLS = ["air_temperature_mean", "wind_speed_mean", "rain_days",
+                          "mes_sin", "mes_cos"]
 
         if USE_PANEL:
             df_work = build_panel_dataset(df_best, target)
@@ -620,6 +721,17 @@ def main():
         X_final = df_work[final_vars].copy()
         y = df_work[target].copy()
 
+        # Eliminar filas sin valor de target (ej: sensores AURN sin PM2.5)
+        valid_mask = y.notna()
+        if not valid_mask.all():
+            n_dropped = (~valid_mask).sum()
+            log.info(f"  Filtrando {n_dropped} filas sin {target} (sensores parciales: AURN, etc.)")
+            df_work   = df_work[valid_mask.values].reset_index(drop=True)
+            X_final   = X_final[valid_mask].reset_index(drop=True)
+            y         = y[valid_mask].reset_index(drop=True)
+            if sensor_ids_arr is not None:
+                sensor_ids_arr = sensor_ids_arr[valid_mask.values]
+
         # Centinela de distancias (ahora sobre el dataset de trabajo completo)
         X_final = X_final.replace([np.inf, -np.inf], np.nan)
         for dc in [c for c in X_final.columns if c.startswith("dist_")]:
@@ -634,10 +746,48 @@ def main():
         X_np = X_final.values
         y_np = y.values
 
+        # ── Preparación de spatial lag (anti-data-leakage) ──────────────────────
+        _coords_arr    = None
+        _sensor_pm_map = None
+        if is_panel:
+            try:
+                unique_panel_sensors = np.unique(sensor_ids_arr)
+                _coords_arr = np.array([
+                    (
+                        sensors_gdf.loc[sensors_gdf["sensor_id"] == s, "geometry"].values[0].x,
+                        sensors_gdf.loc[sensors_gdf["sensor_id"] == s, "geometry"].values[0].y,
+                    )
+                    if s in sensors_gdf["sensor_id"].values else (np.nan, np.nan)
+                    for s in unique_panel_sensors
+                ])
+                # sensor_pm_map: para cada sensor, su vector de PM indexado globalmente
+                # (posiciones que no corresponden al sensor quedan como NaN)
+                _sensor_pm_map = {}
+                for s in unique_panel_sensors:
+                    mask_s = sensor_ids_arr == s
+                    pm_arr = np.full(len(y_np), np.nan)
+                    pm_arr[mask_s] = y_np[mask_s]
+                    _sensor_pm_map[s] = pm_arr
+                log.info(
+                    f"  [Spatial lag] {len(_coords_arr)} coordenadas cargadas "
+                    f"para {target} (k=3)"
+                )
+            except Exception as _e:
+                log.warning(f"  [Spatial lag] Deshabilitado: {_e}")
+                _coords_arr    = None
+                _sensor_pm_map = None
+        # ── Fin preparación spatial lag ─────────────────────────────────────────
+
         # Función CV según tipo de datos
         def _cv(model_class, **kwargs):
             if is_panel:
-                return loocv_panel(model_class, X_np, y_np, sensor_ids_arr, **kwargs)
+                return loocv_panel(
+                    model_class, X_np, y_np, sensor_ids_arr,
+                    coords=_coords_arr,
+                    sensor_pm_map=_sensor_pm_map,
+                    k_neighbors=3,
+                    **kwargs,
+                )
             else:
                 return loocv(model_class, X_np, y_np, **kwargs)
 
@@ -673,8 +823,15 @@ def main():
             },
             "LogLinear": {
                 "res": _cv(LinearRegression, log_transform=True) if not is_panel
-                       else loocv_panel(LinearRegression, X_np, np.log(np.clip(y_np, 1e-9, None)),
-                                        sensor_ids_arr),
+                       else loocv_panel(
+                           LinearRegression,
+                           X_np,
+                           np.log(np.clip(y_np, 1e-9, None)),
+                           sensor_ids_arr,
+                           coords=_coords_arr,
+                           sensor_pm_map=_sensor_pm_map,
+                           k_neighbors=3,
+                       ),
                 "factory": lambda: LinearRegression(),
                 "model_type": "linear",
             },
@@ -693,9 +850,16 @@ def main():
                        else (lambda _res: dict(_res, y_pred=np.expm1(_res["y_pred"]),
                                                r2_cv=r2_score(y_np, np.expm1(_res["y_pred"])),
                                                rmse_cv=np.sqrt(mean_squared_error(y_np, np.expm1(_res["y_pred"]))))
-                             )(loocv_panel(None, X_np, np.log1p(np.clip(y_np, 1e-9, None)),
-                                           sensor_ids_arr,
-                                           instance_factory=lambda: RidgeCV(alphas=ridge_alphas, cv=None))),
+                             )(loocv_panel(
+                                 None,
+                                 X_np,
+                                 np.log1p(np.clip(y_np, 1e-9, None)),
+                                 sensor_ids_arr,
+                                 instance_factory=lambda: RidgeCV(alphas=ridge_alphas, cv=None),
+                                 coords=_coords_arr,
+                                 sensor_pm_map=_sensor_pm_map,
+                                 k_neighbors=3,
+                             )),
                 "factory": lambda: RidgeCV(alphas=ridge_alphas, cv=None),
                 "model_type": "linear",
             },

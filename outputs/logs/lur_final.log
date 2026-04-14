@@ -1,0 +1,108 @@
+2026-04-14 20:21:46,988 [INFO] === FASES 5-7: Feature Selection, Modelling & Diagnostics ===
+2026-04-14 20:21:47,043 [INFO] 
+############################################################
+  TARGET: PM2.5
+############################################################
+2026-04-14 20:21:47,043 [INFO]   Seleccionando escala óptima para PM2.5 ...
+2026-04-14 20:21:47,135 [INFO]   Variable sensor-level 'dist_industrial_m': |r|=0.550 (sin selección de escala)
+2026-04-14 20:21:47,136 [INFO]   Variable sensor-level 'dist_centre_m': |r|=0.050 (sin selección de escala)
+2026-04-14 20:21:47,138 [INFO]   Variable sensor-level 'dist_port_m': |r|=0.149 (sin selección de escala)
+2026-04-14 20:21:47,139 [INFO]   Variable sensor-level 'dist_tunnel_m': |r|=0.187 (sin selección de escala)
+2026-04-14 20:21:47,140 [INFO]   Variable sensor-level 'dist_station_m': |r|=0.175 (sin selección de escala)
+2026-04-14 20:21:47,141 [INFO]   Variable sensor-level 'dist_airport_m': |r|=0.172 (sin selección de escala)
+2026-04-14 20:21:47,142 [INFO]   Variable sensor-level 'elevation_m': |r|=0.808 (sin selección de escala)
+2026-04-14 20:21:47,142 [INFO]   Variables retenidas tras selección de escala: 27
+2026-04-14 20:21:47,148 [INFO]   Densidad de población integrada: 105 filas
+2026-04-14 20:21:47,494 [INFO]   Correlaciones: {'aadf_total_sum_1000m': np.float64(0.398), 'aadf_total_mean_250m': np.float64(0.266), 'aadf_total_max_50m': np.float64(0.207), 'road_length_total_m_1000m': np.float64(0.609), 'road_length_primary_m_500m': np.float64(0.304), 'road_length_secondary_m_1000m': np.float64(0.154), 'road_length_residential_m_1000m': np.float64(0.653), 'road_density_m_per_m2_1000m': np.float64(0.609), 'building_area_m2_1000m': np.float64(0.14), 'building_coverage_ratio_1000m': np.float64(0.14), 'landuse_industrial_m2_1000m': np.float64(0.431), 'landuse_industrial_ratio_1000m': np.float64(0.431), 'landuse_residential_m2_1000m': np.float64(0.48), 'landuse_residential_ratio_1000m': np.float64(0.48), 'landuse_commercial_m2_1000m': np.float64(0.261), 'landuse_commercial_ratio_1000m': np.float64(0.261), 'landuse_green_m2_100m': np.float64(0.731), 'landuse_green_ratio_100m': np.float64(0.731), 'traffic_weighted_exposure_250m': np.float64(0.18), 'intersections_count_1000m': np.float64(0.524), 'dist_industrial_m': np.float64(0.55), 'dist_centre_m': np.float64(0.05), 'dist_port_m': np.float64(0.149), 'dist_tunnel_m': np.float64(0.187), 'dist_station_m': np.float64(0.175), 'dist_airport_m': np.float64(0.172), 'elevation_m': np.float64(0.808)}
+2026-04-14 20:21:47,532 [INFO]   Variables tras filtro p-value (<0.1): 0 \u2192 []
+2026-04-14 20:21:47,532 [WARNING]   Ninguna variable significativa para PM2.5. Usando top 5 por |correlación|.
+2026-04-14 20:21:47,538 [INFO]     VIF: eliminar 'landuse_green_ratio_100m' (VIF=inf)
+2026-04-14 20:21:47,539 [INFO]     VIF: eliminar 'road_length_total_m_1000m' (VIF=34.7)
+2026-04-14 20:21:47,541 [INFO]     VIF: eliminar 'elevation_m' (VIF=13.0)
+2026-04-14 20:21:47,541 [INFO]   Variables finales tras VIF: 2 \u2192 ['landuse_green_m2_100m', 'road_length_residential_m_1000m']
+2026-04-14 20:21:47,541 [INFO]   Variables espaciales seleccionadas para PM2.5: ['landuse_green_m2_100m', 'road_length_residential_m_1000m']
+2026-04-14 20:21:47,546 [INFO]   [PANEL] Join espacial: 232 filas (21 sensores)
+2026-04-14 20:21:47,548 [INFO]   [PANEL] Meteo mergeada: 232/232 filas con datos
+2026-04-14 20:21:47,552 [INFO]   [PANEL] Estacionalidad cíclica añadida: mes_sin, mes_cos
+2026-04-14 20:21:47,553 [INFO]   [PANEL] Dataset final: 232 filas, 21 sensores, columnas=['sensor_id', 'year_month', 'PM2.5', 'aadf_total_sum_1000m', 'aadf_total_mean_250m', 'aadf_total_max_50m', 'road_length_total_m_1000m', 'road_length_primary_m_500m', 'road_length_secondary_m_1000m', 'road_length_residential_m_1000m', 'road_density_m_per_m2_1000m', 'building_area_m2_1000m', 'building_coverage_ratio_1000m', 'landuse_industrial_m2_1000m', 'landuse_industrial_ratio_1000m', 'landuse_residential_m2_1000m', 'landuse_residential_ratio_1000m', 'landuse_commercial_m2_1000m', 'landuse_commercial_ratio_1000m', 'landuse_green_m2_100m', 'landuse_green_ratio_100m', 'traffic_weighted_exposure_250m', 'intersections_count_1000m', 'dist_industrial_m', 'dist_centre_m', 'dist_port_m', 'dist_tunnel_m', 'dist_station_m', 'dist_airport_m', 'elevation_m', 'air_temperature_mean', 'wind_speed_mean', 'rain_days', 'mes_sin', 'mes_cos']
+2026-04-14 20:21:47,553 [INFO]   [PANEL] n=232 (21 sensores × meses) | features LUR: ['landuse_green_m2_100m', 'road_length_residential_m_1000m'] | controles meteo: ['air_temperature_mean', 'wind_speed_mean', 'rain_days', 'mes_sin', 'mes_cos']
+2026-04-14 20:21:47,554 [INFO]   Filtrando 12 filas sin PM2.5 (sensores parciales: AURN, etc.)
+2026-04-14 20:21:47,554 [INFO]   Variables finales para PM2.5: ['landuse_green_m2_100m', 'road_length_residential_m_1000m', 'air_temperature_mean', 'wind_speed_mean', 'rain_days', 'mes_sin', 'mes_cos']
+2026-04-14 20:21:47,567 [INFO]   [Spatial lag] 20 coordenadas cargadas para PM2.5 (k=3)
+2026-04-14 20:21:47,567 [INFO]   [LOOCV-PANEL] Spatial lag activado (k=3)
+2026-04-14 20:21:47,664 [INFO]   [LOOCV-PANEL] Spatial lag activado (k=3)
+2026-04-14 20:21:47,759 [INFO]   [LOOCV-PANEL] Spatial lag activado (k=3)
+2026-04-14 20:21:48,257 [INFO]   [LOOCV-PANEL] Spatial lag activado (k=3)
+2026-04-14 20:21:48,340 [INFO]   [LOOCV-PANEL] Spatial lag activado (k=3)
+2026-04-14 20:21:52,366 [INFO]   [LOOCV-PANEL] Spatial lag activado (k=3)
+2026-04-14 20:21:53,342 [INFO]   [LOOCV-PANEL] Spatial lag activado (k=3)
+2026-04-14 20:21:53,436 [INFO]   [LOOCV-PANEL] Spatial lag activado (k=3)
+2026-04-14 20:21:53,588 [INFO]   LinearRegression LOOCV: R²=0.4638, RMSE=2.590
+2026-04-14 20:21:53,588 [INFO]   Ridge LOOCV: R²=0.4612, RMSE=2.597
+2026-04-14 20:21:53,588 [INFO]   ElasticNet LOOCV: R²=0.4635, RMSE=2.591
+2026-04-14 20:21:53,588 [INFO]   LogLinear LOOCV: R²=0.3436, RMSE=0.346
+2026-04-14 20:21:53,588 [INFO]   RandomForest LOOCV: R²=0.5871, RMSE=2.273
+2026-04-14 20:21:53,588 [INFO]   GradientBoosting LOOCV: R²=0.5898, RMSE=2.266
+2026-04-14 20:21:53,588 [INFO]   LogRidge LOOCV: R²=0.3469, RMSE=2.859
+2026-04-14 20:21:53,588 [INFO]   SVR LOOCV: R²=0.6020, RMSE=2.232
+2026-04-14 20:21:53,588 [INFO]   Criterio: mayor R²_CV global \u2192 SVR
+2026-04-14 20:21:53,591 [INFO]   Modelo elegido para PM2.5: SVR (R²_CV=0.6020, RMSE_CV=2.232)
+2026-04-14 20:21:53,591 [INFO]   Ejecutando Spatial CV (Leave-Cluster-Out) para PM2.5 ...
+2026-04-14 20:21:55,167 [INFO]   Spatial CV panel (4 clusters): R²=0.4002
+2026-04-14 20:21:55,167 [INFO]   Spatial CV R²=0.4002  vs  LOOCV R²=0.6020  (diferencia: +0.2017)
+2026-04-14 20:21:55,168 [INFO]   Calculando intervalos bootstrap para PM2.5 ...
+2026-04-14 20:21:55,373 [INFO]   Bootstrap (200 iter, \u03b1=0.1): intervalo medio ±0.76 µg/m³
+2026-04-14 20:21:55,375 [INFO] 
+============================================================
+  OLS Summary: Lineal \u2192 PM2.5
+============================================================
+2026-04-14 20:21:55,381 [INFO]                             OLS Regression Results                            
+==============================================================================
+Dep. Variable:                  PM2.5   R-squared:                       0.546
+Model:                            OLS   Adj. R-squared:                  0.531
+Method:                 Least Squares   F-statistic:                     36.45
+Date:                Tue, 14 Apr 2026   Prob (F-statistic):           3.46e-33
+Time:                        20:21:55   Log-Likelihood:                -503.20
+No. Observations:                 220   AIC:                             1022.
+Df Residuals:                     212   BIC:                             1050.
+Df Model:                           7                                         
+Covariance Type:            nonrobust                                         
+===================================================================================================
+                                      coef    std err          t      P>|t|      [0.025      0.975]
+---------------------------------------------------------------------------------------------------
+const                               7.8933      2.778      2.841      0.005       2.417      13.369
+landuse_green_m2_100m               0.0007   7.09e-05      9.752      0.000       0.001       0.001
+road_length_residential_m_1000m     0.0001   1.41e-05      8.187      0.000    8.79e-05       0.000
+air_temperature_mean               -0.0220      0.214     -0.103      0.918      -0.444       0.400
+wind_speed_mean                    -0.8633      0.317     -2.727      0.007      -1.487      -0.239
+rain_days                           0.0524      0.233      0.225      0.822      -0.406       0.511
+mes_sin                             0.4566      0.725      0.630      0.530      -0.973       1.886
+mes_cos                             1.0221      0.923      1.107      0.269      -0.797       2.842
+==============================================================================
+Omnibus:                        7.290   Durbin-Watson:                   1.481
+Prob(Omnibus):                  0.026   Jarque-Bera (JB):                7.924
+Skew:                           0.315   Prob(JB):                       0.0190
+Kurtosis:                       3.684   Cond. No.                     4.44e+05
+==============================================================================
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+[2] The condition number is large, 4.44e+05. This might indicate that there are
+strong multicollinearity or other numerical problems.
+2026-04-14 20:21:55,382 [INFO]   Breusch-Pagan p-value: 0.0001 (Heterocedasticidad detectada)
+Traceback (most recent call last):
+  File "C:\Users\Ivan\Ciencia de Datos\PROYIII\src\models\lur_model.py", line 1049, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Ivan\Ciencia de Datos\PROYIII\src\models\lur_model.py", line 972, in main
+    res_df = pd.DataFrame({"sensor_id": df_work["sensor_id"].values,
+                           "residual": residuals.values})
+  File "C:\Users\Ivan\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\core\frame.py", line 769, in __init__
+    mgr = dict_to_mgr(data, index, columns, dtype=dtype, copy=copy)
+  File "C:\Users\Ivan\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\core\internals\construction.py", line 460, in dict_to_mgr
+    return arrays_to_mgr(arrays, columns, index, dtype=dtype, consolidate=copy)
+  File "C:\Users\Ivan\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\core\internals\construction.py", line 113, in arrays_to_mgr
+    index = _extract_index(arrays)
+  File "C:\Users\Ivan\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\core\internals\construction.py", line 643, in _extract_index
+    raise ValueError("All arrays must be of the same length")
+ValueError: All arrays must be of the same length

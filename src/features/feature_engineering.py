@@ -34,7 +34,7 @@ BUILDINGS_GPKG = DATA_RAW / "buildings_liverpool.gpkg"
 LANDUSE_GPKG  = DATA_RAW / "landuse_liverpool.gpkg"
 OUT_CSV       = DATA_INT / "lur_features.csv"
 
-BUFFER_RADII = [50, 100, 250, 500]   # metros
+BUFFER_RADII = [50, 100, 250, 500, 1000]   # metros
 
 # Centro de Liverpool en EPSG:27700 (British National Grid)
 LIVERPOOL_CENTRE_X = 335000.0

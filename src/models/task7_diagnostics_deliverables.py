@@ -37,7 +37,7 @@ def find_root() -> Path:
 ROOT = find_root()
 FIGURES_DIR = ROOT / "outputs" / "figures" / "lur"  # imágenes
 MODELS_DIR  = ROOT / "outputs" / "models"            # modelos .pkl
-OUTPUTS_DIR = ROOT / "outputs" / "LUR"               # CSVs de resultados
+OUTPUTS_DIR = ROOT / "data" / "processed" / "LUR"               # CSVs de resultados
 DOCS_DIR    = ROOT / "docs"                           # reportes markdown
 FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 MODELS_DIR.mkdir(parents=True, exist_ok=True)

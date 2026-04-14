@@ -30,7 +30,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger(__name__)
 
 ROOT    = Path(__file__).resolve().parent
-OUT_DIR   = ROOT / "outputs" / "LUR"   # CSVs de resultados
+OUT_DIR   = ROOT / "data" / "processed" / "LUR"   # CSVs de resultados
 MODELS_DIR = ROOT / "outputs" / "models"  # modelos .pkl
 DOCS_DIR   = ROOT / "docs"               # reportes markdown
 
