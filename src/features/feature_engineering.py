@@ -34,11 +34,24 @@ BUILDINGS_GPKG = DATA_RAW / "buildings_liverpool.gpkg"
 LANDUSE_GPKG  = DATA_RAW / "landuse_liverpool.gpkg"
 OUT_CSV       = DATA_INT / "lur_features.csv"
 
-BUFFER_RADII = [50, 100, 250, 500]   # metros
+BUFFER_RADII = [50, 100, 250, 500, 1000]   # metros
 
 # Centro de Liverpool en EPSG:27700 (British National Grid)
 LIVERPOOL_CENTRE_X = 335000.0
 LIVERPOOL_CENTRE_Y = 390000.0
+
+# C3 — Fuentes puntuales en EPSG:27700
+# Coordenadas obtenidas de OS Maps / Google Maps y convertidas a BNG
+POINT_SOURCES = {
+    # Puerto de Liverpool (Royal Albert Dock centroid)
+    "dist_port_m":       (334300.0, 389700.0),
+    # Túnel Queensway (entrada Birkenhead, salida Liverpool)
+    "dist_tunnel_m":     (333600.0, 390100.0),
+    # Liverpool Lime Street Station
+    "dist_station_m":    (335900.0, 390600.0),
+    # Liverpool Airport (fuente de emisiones de aviación)
+    "dist_airport_m":    (334900.0, 383700.0),
+}
 
 # Categorías de jerarquía viaria que queremos desagregar
 HIGHWAY_CATS = {
@@ -192,6 +205,9 @@ def compute_features_for_sensor(row, streets, buildings, landuse, radius) -> dic
     feat["intersections_count"] = count_intersections_in_buffer(streets_in, buf)
 
     # ── Distancia al centro de Liverpool ─────────────
+    # NOTA A2: esta variable NO depende del radio del buffer — es una propiedad
+    # del sensor, no del entorno a N metros. Se calcula aquí por completitud del
+    # registro, pero en lur_model.py se trata como variable sin escala de buffer.
     centre_x, centre_y = LIVERPOOL_CENTRE_X, LIVERPOOL_CENTRE_Y
     dx = row.geometry.x - centre_x
     dy = row.geometry.y - centre_y
@@ -217,6 +233,13 @@ def compute_features_for_sensor(row, streets, buildings, landuse, radius) -> dic
             sub_lu = landuse.iloc[0:0]
         feat[f"landuse_{lu_cat}_m2"]    = clip_and_area(sub_lu, buf)
         feat[f"landuse_{lu_cat}_ratio"] = feat[f"landuse_{lu_cat}_m2"] / buf_area if buf_area > 0 else 0.0
+
+    # ── C3: Distancias a fuentes puntuales ───────────────────
+    # (tampoco dependen del buffer — son propiedades del sensor)
+    from shapely.geometry import Point
+    for source_name, (sx, sy) in POINT_SOURCES.items():
+        source_pt = Point(sx, sy)
+        feat[source_name] = float(row.geometry.distance(source_pt))
 
     # ── Distancia a zona industrial más cercana ──
     industrial_tags = LANDUSE_CATS["industrial"]
@@ -292,6 +315,17 @@ def main():
 
     # Unir PM2.5 / PM10
     features_df = features_df.merge(pm_ref, on="sensor_id", how="left")
+
+    # Añadir elevación del sensor (sensor-level, idéntica para todos los buffers)
+    elev_path = DATA_INT / "sensor_elevation.csv"
+    if elev_path.exists():
+        df_elev = pd.read_csv(elev_path)[["sensor_id", "elevation_m"]]
+        features_df = features_df.merge(df_elev, on="sensor_id", how="left")
+        med_elev = features_df["elevation_m"].median()
+        features_df["elevation_m"] = features_df["elevation_m"].fillna(med_elev)
+        logging.info(f"Elevación añadida: {features_df['elevation_m'].notna().sum()}/{len(features_df)} filas con datos")
+    else:
+        logging.warning(f"sensor_elevation.csv no encontrado en {elev_path} — columna elevation_m omitida")
 
     features_df.to_csv(OUT_CSV, index=False)
     logging.info(f"Features guardadas → {OUT_CSV}")

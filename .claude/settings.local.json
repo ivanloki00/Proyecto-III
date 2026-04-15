@@ -50,7 +50,28 @@
       "Bash(\"/c/Users/Ivan/AppData/Local/Python/bin/python.exe\" src/analysis/predict_map.py)",
       "Bash(\"/c/Users/Ivan/AppData/Local/Python/bin/python.exe\" src/analysis/task5_loocv_validation.py)",
       "Bash(ls:*)",
-      "Bash(C:/Users/Ivan/AppData/Local/Python/bin/python.exe:*)"
+      "Bash(C:/Users/Ivan/AppData/Local/Python/bin/python.exe:*)",
+      "Bash(cat pyproject.toml)",
+      "Bash(cat requirements.txt)",
+      "Bash(python -c \"import sys; print\\(sys.executable\\)\")",
+      "Bash(pip list:*)",
+      "Bash(jupyter kernelspec:*)",
+      "Bash(python:*)",
+      "Bash(conda env:*)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(where python:*)",
+      "Bash(npx --version)",
+      "Bash(cp '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/diagnostics_PM10.png' '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/figures/diagnostics_PM10.png')",
+      "Bash(cp '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/diagnostics_PM25.png' '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/figures/diagnostics_PM25.png')",
+      "Bash(cp '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/model_comparison.csv' '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/reports/model_comparison.csv')",
+      "Bash(cp '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/validation_report.md' '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/reports/validation_report.md')",
+      "Bash(cp '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/comparison_report.md' '/c/Users/Ivan/Ciencia de Datos/PROYIII/outputs/reports/comparison_report.md')",
+      "Bash(sort find:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:uk-air.defra.gov.uk)",
+      "WebSearch",
+      "Bash(tee \"C:/Users/Ivan/Ciencia de Datos/PROYIII/outputs/logs/lur_final.log\")",
+      "Bash(findstr /C:\"TARGET\" /C:\"LOOCV:\" /C:\"elegido\" /C:\"Filtrando\" /C:\"Error\" /C:\"Traceback\")"
     ]
   }
 }

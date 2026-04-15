@@ -44,29 +44,29 @@ Posibles explicaciones para outliers:
 
 | Target | p-value | Interpretacion |
 |--------|---------|----------------|
-| PM2.5 | 0.1846 | Homocedasticidad OK (p > 0.05) |
-| PM10  | 0.5353 | Homocedasticidad OK (p > 0.05) |
+| PM2.5 | 0.0155 | Heterocedasticidad detectada (p <= 0.05) |
+| PM10  | 0.0127 | Heterocedasticidad detectada (p <= 0.05) |
 
 ### 3.2 Shapiro-Wilk (normalidad de residuos)
 
 | Target | W | p-value | Interpretacion |
 |--------|---|---------|----------------|
-| PM2.5 | 0.9742 | 0.8398 | Residuos normales (p > 0.05) |
-| PM10  | 0.9789 | 0.9191 | Residuos normales (p > 0.05) |
+| PM2.5 | 0.9733 | 0.8220 | Residuos normales (p > 0.05) |
+| PM10  | 0.9834 | 0.9702 | Residuos normales (p > 0.05) |
 
 ### 3.3 Moran's I (autocorrelacion espacial)
 
 | Target | I | E[I] | z | p-value | Interpretacion |
 |--------|---|------|---|---------|----------------|
-| PM2.5 | -0.0266 | -0.0526 | 0.430 | 0.6673 | Sin autocorrelación espacial (p > 0.05) |
-| PM10  | 0.0078 | -0.0526 | 1.015 | 0.3103 | Sin autocorrelación espacial (p > 0.05) |
+| PM2.5 | -0.0547 | -0.0526 | -0.035 | 0.9721 | Sin autocorrelación espacial (p > 0.05) |
+| PM10  | -0.0612 | -0.0526 | -0.142 | 0.8873 | Sin autocorrelación espacial (p > 0.05) |
 
 ### 3.4 Durbin-Watson (informativo, orden por sensor_id)
 
 | Target | DW |
 |--------|----|
-| PM2.5 | 2.6467 |
-| PM10  | 2.1942 |
+| PM2.5 | 2.8050 |
+| PM10  | 2.8143 |
 
 > DW ~ 2.0 indica sin autocorrelacion serial. Rango aceptable: 1.5–2.5.
 
@@ -79,8 +79,8 @@ Posibles explicaciones para outliers:
 - PM10  Ridge LOOCV: R²=0.416, RMSE=3.93 µg/m³, MAE=3.21 µg/m³.
 
 **Supuestos del modelo:**
-- Homocedasticidad: PM2.5 OK / PM10 OK.
-  
+- Homocedasticidad: PM2.5 FALLA / PM10 FALLA.
+  > Si alguno falla, los intervalos de confianza de Ridge son anticonservadores.
 - Normalidad residuos: PM2.5 OK / PM10 OK.
 - Autocorrelacion espacial: PM2.5 OK / PM10 OK.
 
