@@ -30,3 +30,7 @@ outputs/*.log
 # cache de OSMnx
 cache/
 
+# Configuración local de herramientas
+.claude/
+.vscode/
+
