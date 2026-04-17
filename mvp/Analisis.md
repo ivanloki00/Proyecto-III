@@ -439,7 +439,108 @@ La secuencia importa. No lanzar sin un cliente piloto identificado.
 
 ---
 
-## 12. Métricas de Éxito del MVP
+## 12. Features Diferenciadores del Dashboard — Brainstorm
+
+Las cuatro ideas del brainstorm no son solo mejoras estéticas: cada una resuelve una necesidad diferente del cliente institucional y genera argumentos de venta que un mapa estático no puede ofrecer.
+
+### Feature 1 — Evolución Temporal del Mapa
+
+**Idea:** Un slider de tiempo que permita ver cómo han cambiado los niveles de PM2.5/PM10 por tramo de calle entre 2021 y 2025.
+
+**Por qué importa comercialmente:**
+- El cliente B2G necesita demostrar que sus intervenciones (p. ej. cambio de gestión de tráfico, nuevas rutas de autobús) han reducido la contaminación. Sin un mapa histórico, no hay antes/después.
+- Para una licitación formal, el Consejo necesita mostrar tendencia temporal, no solo un snapshot.
+
+**Implementación técnica:**
+- Añadir columna `year` (2021–2025) a la tabla `streets` en Supabase.
+- Cada tramo tiene una fila por año, con sus predicciones correspondientes.
+- El slider en el frontend filtra por `year` vía parámetro en `/api/streets?year=2023`.
+- El pipeline ya produce un GeoJSON por ejecución anual — solo hay que etiquetar y cargar los históricos.
+
+**Prioridad:** v1.1 (no MVP, pero preparar el esquema de BD desde el inicio para evitar migración)
+
+---
+
+### Feature 2 — Panel EDA Evolutivo
+
+**Idea:** Gráficos de tendencia temporal en el sidebar del dashboard, no solo el mapa estático.
+
+**Por qué importa comercialmente:**
+- Convierte el producto de "mapa bonito" a "herramienta de análisis". Un analista del Council puede exportar el gráfico directamente a su presentación de comité.
+- Las series temporales de PM2.5 medio mensual por zona (barrio, LSOA, tipo de vía) responden a preguntas que el mapa no puede: ¿la contaminación en el centro mejora en verano? ¿Las calles residenciales empeoran los lunes?
+
+**Visualizaciones mínimas:**
+- Serie temporal de PM2.5 y PM10 medio de Liverpool (línea)
+- Distribución mensual por tipo de vía (`highway`: primary / secondary / residential)
+- Comparativa entre LSOAs seleccionados (multi-línea)
+
+**Implementación técnica:**
+- Endpoint `GET /api/timeseries?lsoa={code}&metric=pm25` — agrega datos históricos por LSOA y mes.
+- Frontend: componente `TimeseriesChart.tsx` usando Chart.js o Recharts (< 50 kB de bundle).
+
+**Prioridad:** v1.1 — junto con el slider temporal
+
+---
+
+### Feature 3 — Eventos Canónicos (Popups Explicativos)
+
+**Idea:** Superponer en la línea de tiempo hitos que explican cambios en la contaminación: confinamientos COVID, cambios de política de transporte, obras importantes, eventos climáticos extremos.
+
+**Por qué importa comercialmente:**
+- Transforma el producto de "datos crudos" a "inteligencia contextualizada". Un directivo del Council no quiere solo ver que PM2.5 bajó en abril de 2020 — quiere saber por qué y qué aprendizaje se puede replicar.
+- Los popups de eventos son argumentos de causa-efecto que justifican inversiones: "cuando cerramos esta calle al tráfico, PM2.5 bajó X%".
+
+**Eventos base a incluir:**
+| Fecha | Evento | Tipo |
+|---|---|---|
+| Mar 2020 – Jun 2021 | Confinamiento COVID-19 | Societal |
+| Ene 2023 | Anuncio de evaluación CAZ Liverpool | Policy |
+| Ago 2024 | Ola de calor UK (efecto en PM10) | Climate |
+| Ene 2022 | Nuevas rutas de bus eléctrico Merseytravel | Transport |
+
+**Implementación técnica:**
+- Tabla `events` en Supabase con campos: `date`, `label`, `description`, `type` (policy/climate/health/transport).
+- Endpoint `GET /api/events?from=&to=` — devuelve eventos en rango de fechas.
+- Frontend: marcadores en el eje de tiempo del slider con tooltip al hover.
+
+**Prioridad:** v1.1 — bajo coste técnico, alto impacto demo
+
+---
+
+### Feature 4 — Interactividad Profunda
+
+**Idea:** El mapa no es solo un fondo — responde a interacciones del usuario.
+
+**Interacciones prioritarias:**
+1. **Click en tramo** → popup con `name`, `highway`, `pm25_pred` (score A–F), `pm10_pred`, `aadf_imputed` (tráfico estimado), distancia al centro
+2. **Buscar dirección** → geocodificación (Nominatim/Mapbox) → centrar mapa + resaltar tramos en radio 200m + mostrar `PollutionScore` card
+3. **Filtros de capa** → mostrar solo tramos con score D/E/F (los peores) para identificar zonas de intervención prioritaria
+4. **Comparar LSOAs** → seleccionar dos LSOAs y ver diferencia de PM2.5 con contexto de desigualdad social
+
+**Implementación técnica:**
+- Todo en el frontend (`AirMap.tsx`) con eventos Mapbox GL JS estándar (`map.on('click', ...)`)
+- Filtro de capas: expresión Mapbox `['>', ['get', 'pm25_pred'], 15]` — sin llamada adicional a la API
+- Búsqueda por dirección: Nominatim (gratuito, GDPR-compliant) o Mapbox Geocoding API (token ya disponible)
+
+**Prioridad:** MVP — las features 1 y 2 son las que diferencian en demo; el click básico debe estar en v0.1
+
+---
+
+### Integración en roadmap actualizado
+
+| Feature | Roadmap | Coste técnico estimado |
+|---|---|---|
+| Click en tramo → popup | MVP | 0.5 días |
+| Búsqueda por dirección | MVP | 1 día |
+| Filtros de capa (score D/E/F) | MVP | 0.5 días |
+| Slider temporal (2021–2025) | v1.1 | 3 días (incluyendo carga de históricos) |
+| Panel EDA evolutivo | v1.1 | 2 días |
+| Eventos canónicos (popups timeline) | v1.1 | 1 día |
+| Comparativa LSOAs | v1.2 | 2 días |
+
+---
+
+## 13. Métricas de Éxito del MVP
 
 ### KPIs técnicos
 
@@ -464,7 +565,7 @@ La secuencia importa. No lanzar sin un cliente piloto identificado.
 
 ---
 
-## Conclusión: Próximos Pasos Concretos
+## 14. Conclusión: Próximos Pasos Concretos
 
 El trabajo científico de Milestone 1 ya produjo el activo central del producto: 8.450 tramos de calle con predicciones validadas estadísticamente. El MVP no requiere más ciencia — requiere envolver ese activo en una interfaz comercializable.
 
