@@ -13,7 +13,7 @@ Antes de hablar de producto, hay que entender con precisión qué material cient
 | Activo | Estado | Descripción | Valor comercial |
 |---|---|---|---|
 | `liverpool_pollution_map.geojson` | Producido | 8.450 tramos de calle con PM2.5 y PM10 predichos | Cobertura 100% de la red viaria de Liverpool — ningún competidor tiene esto a nivel de tramo |
-| `lur_model_PM25.pkl` / `lur_model_PM10.pkl` | Serializados | Modelos Ridge entrenados, R² = 0.586 (PM2.5) y 0.503 (PM10) | Reentrenables e integrables en cualquier API Python sin trabajo de ML adicional |
+| `lur_model_PM25.pkl` / `lur_model_PM10.pkl` | Serializados | Modelos SVR entrenados, R² = 0.602 (PM2.5) y 0.581 (PM10) LOOCV | Reentrenables e integrables en cualquier API Python sin trabajo de ML adicional |
 | Pipeline reproducible | 9 scripts encadenados | Desde ingesta de sensores hasta GeoJSON final | Permite actualizar predicciones con nuevos datos de sensores; **la ventaja defensiva clave** |
 | Datos de 24 sensores | CSV histórico 2021–2025 | Historial real de monitorización, no datos sintéticos | Credibilidad científica frente a modelos puramente satelitales o de interpolación gruesa |
 | Features urbanas enriquecidas | OSM + AADF + Elevación + Vegetación | Variables proxy validadas estadísticamente | Replicable a cualquier ciudad con red OSM y datos DfT AADF disponibles públicamente |
@@ -447,8 +447,8 @@ La secuencia importa. No lanzar sin un cliente piloto identificado.
 |---|---|---|---|
 | Latencia API `/predict` (p95) | < 200 ms | Monitorización endpoint (UptimeRobot o similar) | No desplegada |
 | Cobertura geográfica | 100% red viaria Liverpool | Verificar NaN en GeoJSON | ✅ 8.450 tramos |
-| R² PM2.5 en reentrenamiento | ≥ 0.58 | LOOCV automatizado | ✅ 0.586 en baseline |
-| R² PM10 en reentrenamiento | ≥ 0.49 | LOOCV automatizado | ✅ 0.503 en baseline |
+| R² PM2.5 en reentrenamiento | ≥ 0.60 | LOOCV automatizado | ✅ 0.602 (SVR, sesión Abril 2026) |
+| R² PM10 en reentrenamiento | ≥ 0.58 | LOOCV automatizado | ✅ 0.581 (SVR, sesión Abril 2026) |
 | Uptime API | ≥ 99.5% | UptimeRobot monthly report | No desplegada |
 | Tiempo de actualización del mapa | < 2 horas desde nuevos datos de sensores | Log del pipeline | No medido |
 

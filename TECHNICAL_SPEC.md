@@ -15,26 +15,30 @@ El pipeline científico del Milestone 1 produjo el activo central del producto:
 | Artefacto | Ruta en repo | Descripción |
 |---|---|---|
 | `liverpool_pollution_map.geojson` | `outputs/maps/` | 8.450 tramos viarios con `pm25_pred` y `pm10_pred` |
-| `lur_model_PM25.pkl` | `outputs/models/` | Ridge Regression (α=0.01), R²=0.5858 LOOCV |
-| `lur_model_PM10.pkl` | `outputs/models/` | Ridge Regression (α=0.01), R²=0.4159 LOOCV |
+| `lur_model_PM25.pkl` | `outputs/models/` | SVR, R²=0.6020 LOOCV (sesión mejora Abril 2026) |
+| `lur_model_PM10.pkl` | `outputs/models/` | SVR, R²=0.5809 LOOCV (sesión mejora Abril 2026) |
 | Pipeline 9 scripts | `src/` | Reproducible: datos → features → modelos → mapa |
 
 ### Métricas del modelo (referencia)
 
 | Métrica | PM2.5 | PM10 |
 |---|---|---|
-| R² LOOCV | **0.5858** | **0.4159** |
-| RMSE (µg/m³) | 1.84 | 3.93 |
-| MAE (µg/m³) | 1.51 | 3.21 |
+| R² LOOCV | **0.6020** | **0.5809** |
+| RMSE LOOCV (µg/m³) | **2.232** | **3.512** |
+| MAE (µg/m³) | N/D | N/D |
 | Outliers (>2×RMSE) | 0 | 0 |
-| Sensores base | 20 | 20 |
+| Sensores base | 20 (LISP excluido: sin PM2.5) | 21 |
 | Tramos predichos | 8.450 | 8.450 |
+
+> **Nota:** El modelo Ridge original (baseline Task 4) tenía R²=0.5858/PM2.5 y R²=0.5034/PM10.
+> La sesión de mejora de Abril 2026 (doc `08_lur_improvement_session.md`) añadió spatial lag,
+> estacionalidad cíclica, buffer 1000m y sensor LISP, mejorando a SVR como modelo ganador.
 
 ### Variables predictoras del modelo
 
-**PM2.5** (4 variables): `road_length_residential_m_500m`, `landuse_industrial_ratio_250m`, `landuse_green_ratio_100m`, `dist_industrial_m_50m`
+**PM2.5** (2 LUR + 5 controles): `landuse_green_m2_100m`, `road_length_residential_m_1000m` + `air_temperature_mean`, `wind_speed_mean`, `rain_days`, `mes_sin`, `mes_cos`
 
-**PM10** (3 variables): `road_length_residential_m_500m`, `landuse_green_ratio_100m`, `dist_industrial_m_50m`
+**PM10**: variables seleccionadas por LOOCV SVR — ver `docs/08_lur_improvement_session.md` para detalle completo
 
 ---
 
@@ -230,7 +234,7 @@ Devuelve todos los tramos dentro de un bounding box. Usado por el mapa para carg
   "status": "ok",
   "db_connected": true,
   "streets_count": 8450,
-  "model_version": "ridge-v1-20260410",
+  "model_version": "svr-v2-20260414",
   "timestamp_utc": "2026-04-17T10:30:00Z"
 }
 ```
@@ -728,7 +732,7 @@ Pasos:
 | Latencia `/api/predict` | < 200 ms (p95) | Vercel Analytics / Supabase Logs |
 | Cobertura geográfica | 8.450 tramos (0 NaN) | `SELECT COUNT(*) FROM streets` |
 | Disponibilidad | ≥ 99.5% | Vercel uptime monitor |
-| Precisión PM2.5 | R² ≥ 0.58 en reentrenamiento | LOOCV automatizado |
+| Precisión PM2.5 | R² ≥ 0.60 en reentrenamiento | LOOCV automatizado |
 | Primer cliente B2G | 1 piloto pagado | CRM |
 | API keys activas | ≥ 5 (mes 6) | Supabase dashboard |
 
@@ -757,4 +761,4 @@ Pasos:
 
 ---
 
-*Documento generado el 2026-04-17. Versión de referencia del modelo: Ridge LUR v1, entrenado sobre datos 2024, LOOCV n=20 sensores.*
+*Documento generado el 2026-04-17. Última actualización de métricas: 2026-04-17. Versión de referencia del modelo: SVR LUR v2, entrenado sobre datos 2024 con 21 sensores (PM10) / 20 sensores (PM2.5), tras sesión de mejora Abril 2026 — ver `docs/08_lur_improvement_session.md`.*
