@@ -1,0 +1,123 @@
+# generated: 2026-04-20
+# last_updated: 2026-04-20
+# project: airtrace-web
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+#
+# DEPENDENCY NOTES (airtrace-web):
+# =================================
+# Sprint 1 (datos disponibles hoy): Epics 1, 2, 5 + Epic 4 parcial (Story 4.1)
+# Sprint 2 (requiere pipeline Python): Epics 3, 6 + Epic 4 completo
+# Pipeline Python genera: 12 GeoJSONs mensuales, monthly_stats.json, events.json
+# Bloqueante crítico: AR-10 — ejecutar pipeline antes de iniciar Epic 3 y Epic 6
+
+generated: 2026-04-20
+last_updated: 2026-04-20
+project: airtrace-web
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 1: Scaffold Desplegable
+  # Dependencias: ninguna — puede iniciarse hoy
+  # ─────────────────────────────────────────────────────────────
+  epic-1: in-progress
+  1-1-bootstrap-del-proyecto-y-ci-cd: review
+  1-2-estructura-de-carpetas-y-tipos-globales: backlog
+  1-3-layout-d1-dark-y-shell-responsive: backlog
+  1-4-loading-overlay-y-spinner-global: backlog
+  epic-1-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 2: Mapa Anual de Calidad del Aire
+  # Dependencias: Epic 1
+  # Datos disponibles: liverpool_pollution_map.geojson ✅
+  # ─────────────────────────────────────────────────────────────
+  epic-2: backlog
+  2-1-mapa-mapbox-con-tramos-de-calle-anuales: backlog
+  2-2-escala-de-color-a-f-en-tramos-de-calle: backlog
+  2-3-leyenda-a-f-flotante-sobre-el-mapa: backlog
+  2-4-infocard-de-tramo-de-calle: backlog
+  epic-2-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 3: Exploración Mensual (Slider Temporal)
+  # Dependencias: Epic 2 + Pipeline Python (AR-10) ⚠️ BLOQUEADO
+  # Requiere: 12 GeoJSONs mensuales + monthly_stats.json
+  # ─────────────────────────────────────────────────────────────
+  epic-3: backlog
+  3-1-web-worker-y-cache-en-memoria-para-geojsons: backlog
+  3-2-componente-monthslider: backlog
+  3-3-transicion-de-mes-con-cross-fade: backlog
+  3-4-contexto-meteorologico-y-botones-coloreados: backlog
+  3-5-infocard-actualiza-datos-al-cambiar-mes: backlog
+  3-6-prefetch-en-background-de-los-12-meses: backlog
+  epic-3-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 4: Panel EDA — Análisis de Contaminación
+  # Dependencias: Epic 2 (Story 4.1 independiente); Epic 3 (Stories 4.2–4.5)
+  # Nota: Story 4.1 puede desarrollarse con datos anuales
+  # ─────────────────────────────────────────────────────────────
+  epic-4: backlog
+  4-1-grafico-3a-serie-temporal-pm25-pm10: backlog
+  4-2-sincronizacion-bidireccional-slider-grafico-3a: backlog
+  4-3-grafico-3b-pm25-por-tipo-de-via: backlog
+  4-4-grafico-3c-top-5-tramos-mas-contaminados: backlog
+  4-5-contador-3d-cumplimiento-oms-y-uk-2040: backlog
+  epic-4-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 5: Vista por Barrios (LSOA)
+  # Dependencias: Epic 2
+  # Datos disponibles: lur_lsoa_predictions.geojson ✅ — no bloqueado
+  # ─────────────────────────────────────────────────────────────
+  epic-5: backlog
+  5-1-capa-lsoa-con-escala-a-f: backlog
+  5-2-toggle-calles-barrios: backlog
+  5-3-infocard-de-barrio-lsoa: backlog
+  epic-5-retrospective: optional
+
+  # ─────────────────────────────────────────────────────────────
+  # EPIC 6: Contexto de Eventos Históricos
+  # Dependencias: Epic 4 + Pipeline Python (AR-10) ⚠️ BLOQUEADO
+  # Requiere: events.json del pipeline Python
+  # ─────────────────────────────────────────────────────────────
+  epic-6: backlog
+  6-1-carga-de-eventos-y-markers-en-el-mapa: backlog
+  6-2-popup-de-evento-con-detalle: backlog
+  6-3-iconos-de-eventos-en-grafico-3a: backlog
+  epic-6-retrospective: optional

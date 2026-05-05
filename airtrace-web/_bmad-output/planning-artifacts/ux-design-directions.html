@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AirTrace — Design Directions</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Inter, system-ui, sans-serif; background: #0a0b0f; color: #f0f2f7; }
+
+  /* NAV */
+  .nav { position: sticky; top: 0; z-index: 100; background: #0f1117; border-bottom: 1px solid #2d3142;
+    display: flex; align-items: center; gap: 8px; padding: 12px 24px; flex-wrap: wrap; }
+  .nav h1 { font-size: 14px; font-weight: 600; color: #f0f2f7; margin-right: 16px; }
+  .nav a { font-size: 12px; padding: 6px 12px; border-radius: 6px; text-decoration: none;
+    color: #8b92a9; border: 1px solid #2d3142; transition: all .2s; white-space: nowrap; }
+  .nav a:hover, .nav a.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+  /* SECTIONS */
+  .direction { min-height: 100vh; padding: 32px 24px; border-bottom: 2px solid #2d3142; }
+  .direction-header { margin-bottom: 24px; }
+  .direction-header h2 { font-size: 20px; font-weight: 700; color: #f0f2f7; }
+  .direction-header p { font-size: 13px; color: #8b92a9; margin-top: 4px; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px;
+    margin-left: 8px; font-weight: 600; }
+  .badge-blue { background: #1e3a5f; color: #60a5fa; }
+  .badge-green { background: #14532d; color: #4ade80; }
+
+  /* MOCKUP SHELL */
+  .mockup { border-radius: 12px; overflow: hidden; border: 1px solid #2d3142;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5); max-width: 1200px; }
+  .browser-bar { background: #1a1d27; padding: 10px 16px; display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid #2d3142; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #ef4444; }
+  .dot-y { background: #eab308; }
+  .dot-g { background: #22c55e; }
+  .url-bar { background: #0f1117; border: 1px solid #2d3142; border-radius: 6px;
+    padding: 4px 12px; font-size: 11px; color: #8b92a9; margin-left: 12px; flex: 1; max-width: 320px; }
+
+  /* POLLUTION COLORS */
+  :root {
+    --pm-safe: #22c55e;
+    --pm-low: #eab308;
+    --pm-medium: #f97316;
+    --pm-high: #ef4444;
+    --pm-critical: #7c3aed;
+  }
+
+  /* ===================== DIRECTION 1: Dark Split ===================== */
+  #d1 { background: #0a0b0f; }
+  .d1-app { display: flex; height: 620px; background: #0f1117; }
+  .d1-map { flex: 1; position: relative; background: #141824; overflow: hidden; }
+  .d1-panel { width: 340px; background: #1a1d27; border-left: 1px solid #2d3142;
+    display: flex; flex-direction: column; overflow: hidden; }
+  .d1-map-bg { position: absolute; inset: 0; }
+  .d1-map-bg svg { width: 100%; height: 100%; }
+  .d1-topbar { display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: rgba(15,17,23,0.9); backdrop-filter: blur(8px);
+    border-bottom: 1px solid #2d3142; position: relative; z-index: 10; }
+  .d1-logo { font-size: 16px; font-weight: 700; color: #f0f2f7; display: flex; align-items: center; gap: 8px; }
+  .d1-logo span { color: #3b82f6; }
+  .d1-controls { display: flex; gap: 8px; }
+  .btn-sm { font-size: 11px; padding: 5px 10px; border-radius: 6px; border: 1px solid #2d3142;
+    background: #1a1d27; color: #8b92a9; cursor: pointer; }
+  .btn-sm.active { background: #1e3a5f; color: #60a5fa; border-color: #3b82f6; }
+  .d1-slider-bar { position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
+    background: rgba(15,17,23,0.95); backdrop-filter: blur(8px); padding: 12px 20px;
+    border-top: 1px solid #2d3142; }
+  .slider-label { font-size: 11px; color: #8b92a9; margin-bottom: 8px;
+    display: flex; justify-content: space-between; }
+  .slider-track { height: 4px; background: #2d3142; border-radius: 2px; position: relative; margin-bottom: 8px; }
+  .slider-fill { height: 4px; background: #3b82f6; border-radius: 2px; width: 50%; }
+  .slider-thumb { width: 16px; height: 16px; background: #fff; border: 2px solid #3b82f6;
+    border-radius: 50%; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); }
+  .slider-months { display: flex; justify-content: space-between; font-size: 10px; color: #8b92a9; }
+  .slider-months span.active-month { color: #3b82f6; font-weight: 600; }
+  .d1-infocard { position: absolute; top: 60px; right: 20px; z-index: 20;
+    background: #1a1d27; border: 1px solid #2d3142; border-radius: 10px;
+    padding: 14px; width: 220px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+  .infocard-title { font-size: 12px; font-weight: 600; color: #f0f2f7; margin-bottom: 8px; }
+  .infocard-subtitle { font-size: 11px; color: #8b92a9; margin-bottom: 10px; margin-top: -4px; }
+  .infocard-row { display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0; border-bottom: 1px solid #2d3142; }
+  .infocard-row:last-child { border-bottom: none; }
+  .infocard-key { font-size: 11px; color: #8b92a9; }
+  .infocard-val { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .warn-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px;
+    background: #450a0a; color: #fca5a5; font-weight: 600; margin-top: 8px; display: inline-block; }
+  .panel-tabs { display: flex; border-bottom: 1px solid #2d3142; }
+  .panel-tab { flex: 1; padding: 10px; font-size: 12px; text-align: center;
+    color: #8b92a9; cursor: pointer; border-bottom: 2px solid transparent; }
+  .panel-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+  .panel-body { padding: 16px; flex: 1; overflow-y: auto; }
+  .panel-section { margin-bottom: 20px; }
+  .panel-section h3 { font-size: 11px; font-weight: 600; color: #8b92a9;
+    text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-card { background: #0f1117; border: 1px solid #2d3142; border-radius: 8px; padding: 10px; }
+  .stat-val { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-label { font-size: 10px; color: #8b92a9; margin-top: 2px; }
+  .mini-chart { height: 60px; background: #0f1117; border: 1px solid #2d3142;
+    border-radius: 6px; position: relative; overflow: hidden; }
+  .mini-chart-bars { display: flex; align-items: flex-end; gap: 3px;
+    padding: 8px 8px 0; height: 100%; }
+  .bar { flex: 1; border-radius: 2px 2px 0 0; transition: height .3s; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: #8b92a9; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Map fake visualization */
+  .map-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .map-streets { position: absolute; inset: 0; opacity: 0.6; }
+  .map-label { position: absolute; font-size: 10px; color: rgba(255,255,255,0.4); }
+
+  /* ===================== DIRECTION 2: Light Professional ===================== */
+  #d2 { background: #f5f6fa; }
+  .d2-app { display: flex; flex-direction: column; height: 620px; background: #ffffff; border-radius: 0 0 12px 12px; }
+  .d2-header { background: #1e293b; padding: 0 20px; height: 48px;
+    display: flex; align-items: center; justify-content: space-between; }
+  .d2-logo { font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+  .d2-logo .accent { color: #38bdf8; }
+  .d2-nav { display: flex; gap: 4px; }
+  .d2-nav a { font-size: 12px; padding: 5px 12px; border-radius: 5px; color: rgba(255,255,255,0.6);
+    cursor: pointer; text-decoration: none; }
+  .d2-nav a.active { background: rgba(255,255,255,0.15); color: #fff; }
+  .d2-main { display: flex; flex: 1; overflow: hidden; }
+  .d2-sidebar { width: 300px; background: #f8fafc; border-right: 1px solid #e2e8f0;
+    display: flex; flex-direction: column; }
+  .d2-sidebar-header { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; }
+  .d2-sidebar-title { font-size: 13px; font-weight: 600; color: #0f172a; }
+  .d2-sidebar-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .d2-month-selector { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
+  .month-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .month-pill { font-size: 10px; padding: 3px 7px; border-radius: 4px; cursor: pointer;
+    background: #e2e8f0; color: #475569; border: 1px solid transparent; }
+  .month-pill.active { background: #0ea5e9; color: #fff; }
+  .month-pill:hover { border-color: #0ea5e9; }
+  .d2-stats { padding: 12px 16px; }
+  .d2-stat { display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+  .d2-stat:last-child { border-bottom: none; }
+  .d2-stat-label { font-size: 12px; color: #475569; }
+  .d2-stat-val { font-size: 14px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
+  .d2-map { flex: 1; background: #e2e8f0; position: relative; }
+  .d2-map-inner { position: absolute; inset: 0; background: #dde4ee; }
+  .d2-infocard { position: absolute; bottom: 16px; left: 16px;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 14px; width: 240px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+  .d2-ic-title { font-size: 13px; font-weight: 600; color: #0f172a; }
+  .d2-ic-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .d2-ic-row { display: flex; justify-content: space-between; padding: 5px 0;
+    border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+  .d2-pill { font-size: 10px; padding: 2px 7px; border-radius: 99px; font-weight: 600; }
+  .pill-orange { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+  .pill-red { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+  .d2-bottom { height: 40px; background: #1e293b; display: flex; align-items: center; padding: 0 16px; }
+  .d2-status { font-size: 11px; color: rgba(255,255,255,0.5); }
+
+  /* ===================== DIRECTION 3: Full-bleed Map ===================== */
+  #d3 { background: #080a10; }
+  .d3-app { position: relative; height: 620px; background: #141824; overflow: hidden; }
+  .d3-fullmap { position: absolute; inset: 0; background: #141824; }
+  .d3-topbar { position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+    background: linear-gradient(to bottom, rgba(8,10,16,0.95), transparent);
+    padding: 14px 20px 32px; display: flex; align-items: flex-start; justify-content: space-between; }
+  .d3-logo { font-size: 18px; font-weight: 800; color: #fff; }
+  .d3-logo em { font-style: normal; color: #60a5fa; }
+  .d3-topcontrols { display: flex; gap: 8px; }
+  .glass-btn { background: rgba(255,255,255,0.1); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
+    padding: 6px 12px; font-size: 11px; color: rgba(255,255,255,0.85); cursor: pointer; }
+  .glass-btn.active { background: rgba(59,130,246,0.4); border-color: #3b82f6; color: #93c5fd; }
+  .d3-bottombar { position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
+    background: linear-gradient(to top, rgba(8,10,16,0.98), transparent);
+    padding: 32px 24px 16px; }
+  .d3-slider-row { display: flex; align-items: center; gap: 16px; }
+  .d3-month-display { font-size: 22px; font-weight: 700; color: #fff; min-width: 110px; }
+  .d3-month-sub { font-size: 11px; color: rgba(255,255,255,0.4); }
+  .d3-track { flex: 1; height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; position: relative; }
+  .d3-fill { height: 3px; background: #3b82f6; border-radius: 2px; width: 58%; }
+  .d3-thumb { width: 18px; height: 18px; background: #fff; border: 2px solid #3b82f6;
+    border-radius: 50%; position: absolute; top: -8px; left: 58%; transform: translateX(-50%); }
+  .d3-infocard { position: absolute; top: 70px; left: 20px; z-index: 20;
+    background: rgba(26,29,39,0.92); backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+    padding: 16px; width: 230px; }
+  .d3-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 300px; z-index: 15;
+    background: rgba(15,17,23,0.92); backdrop-filter: blur(20px);
+    border-left: 1px solid rgba(255,255,255,0.08); padding: 60px 16px 16px; overflow-y: auto; }
+  .d3-legend { position: absolute; bottom: 100px; left: 20px; z-index: 10;
+    display: flex; gap: 4px; align-items: center; }
+  .legend-seg { height: 6px; width: 32px; border-radius: 3px; }
+
+  /* ===================== DIRECTION 4: Split + EDA Focus ===================== */
+  #d4 { background: #0a0b0f; }
+  .d4-app { display: flex; height: 620px; background: #0f1117; }
+  .d4-left { flex: 1; display: flex; flex-direction: column; }
+  .d4-map-area { flex: 1; background: #141824; position: relative; }
+  .d4-slider-area { height: 60px; background: #1a1d27; border-top: 1px solid #2d3142;
+    padding: 10px 20px; display: flex; align-items: center; gap: 16px; }
+  .d4-month-badge { background: #1e3a5f; color: #60a5fa; font-size: 12px; font-weight: 700;
+    padding: 4px 10px; border-radius: 6px; white-space: nowrap; }
+  .d4-right { width: 380px; background: #1a1d27; border-left: 1px solid #2d3142;
+    display: flex; flex-direction: column; }
+  .d4-right-header { padding: 14px 16px; border-bottom: 1px solid #2d3142;
+    display: flex; align-items: center; justify-content: space-between; }
+  .d4-right-title { font-size: 13px; font-weight: 700; color: #f0f2f7; }
+  .d4-charts { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .chart-card { background: #0f1117; border: 1px solid #2d3142; border-radius: 8px; padding: 12px; }
+  .chart-title { font-size: 11px; font-weight: 600; color: #8b92a9; margin-bottom: 10px;
+    text-transform: uppercase; letter-spacing: .04em; }
+  .chart-area { height: 72px; position: relative; overflow: hidden; }
+  .line-chart { width: 100%; height: 100%; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 2px; height: 100%; padding-top: 4px; }
+  .bc-bar { flex: 1; border-radius: 2px 2px 0 0; }
+
+  /* ===================== DIRECTION 5: Compact Dark ===================== */
+  #d5 { background: #05060a; }
+  .d5-app { display: flex; flex-direction: column; height: 620px; background: #05060a; }
+  .d5-topbar { height: 40px; background: #0d0f18; border-bottom: 1px solid #1a1d27;
+    display: flex; align-items: center; padding: 0 16px; gap: 16px; }
+  .d5-logo { font-size: 13px; font-weight: 700; color: #f0f2f7; }
+  .d5-logo span { color: #60a5fa; }
+  .d5-nav { display: flex; gap: 2px; }
+  .d5-nav a { font-size: 11px; padding: 4px 8px; border-radius: 4px; color: #8b92a9; cursor: pointer; text-decoration: none; }
+  .d5-nav a.active { background: #1a1d27; color: #f0f2f7; }
+  .d5-main { display: flex; flex: 1; overflow: hidden; }
+  .d5-sidebar { width: 48px; background: #0d0f18; border-right: 1px solid #1a1d27;
+    display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 8px; }
+  .d5-icon { width: 32px; height: 32px; border-radius: 8px; background: #1a1d27;
+    display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
+  .d5-icon.active { background: #1e3a5f; }
+  .d5-content { flex: 1; position: relative; overflow: hidden; }
+  .d5-map { position: absolute; inset: 0; background: #111420; }
+  .d5-bottom { position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
+    background: rgba(5,6,10,0.96); border-top: 1px solid #1a1d27; padding: 8px 16px; }
+  .d5-slider-row { display: flex; align-items: center; gap: 12px; }
+  .d5-month { font-size: 12px; font-weight: 700; color: #60a5fa; min-width: 60px; }
+  .d5-track { flex: 1; height: 2px; background: #1a1d27; border-radius: 1px; position: relative; }
+  .d5-fill { height: 2px; background: #3b82f6; width: 42%; border-radius: 1px; }
+  .d5-thumb { width: 12px; height: 12px; background: #3b82f6; border-radius: 50%;
+    position: absolute; top: -5px; left: 42%; transform: translateX(-50%); }
+  .d5-panel { position: absolute; right: 0; top: 0; width: 280px; height: calc(100% - 44px);
+    background: rgba(13,15,24,0.95); border-left: 1px solid #1a1d27;
+    padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+
+  /* ===================== DIRECTION 6: Split Horizontal ===================== */
+  #d6 { background: #0a0b0f; }
+  .d6-app { display: flex; flex-direction: column; height: 620px; background: #0f1117; }
+  .d6-header { height: 44px; background: #0f1117; border-bottom: 1px solid #2d3142;
+    display: flex; align-items: center; padding: 0 20px; gap: 16px; }
+  .d6-logo { font-size: 14px; font-weight: 700; }
+  .d6-logo em { font-style: normal; color: #3b82f6; }
+  .d6-controls { display: flex; gap: 6px; margin-left: auto; }
+  .d6-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .d6-top { flex: 1; display: flex; overflow: hidden; }
+  .d6-map { flex: 1; background: #141824; position: relative; }
+  .d6-infostrip { width: 260px; background: #1a1d27; border-left: 1px solid #2d3142; overflow-y: auto; padding: 14px; }
+  .d6-bottom { height: 200px; background: #1a1d27; border-top: 1px solid #2d3142; }
+  .d6-eda-tabs { display: flex; border-bottom: 1px solid #2d3142; }
+  .d6-eda-tab { padding: 8px 16px; font-size: 11px; color: #8b92a9; cursor: pointer;
+    border-bottom: 2px solid transparent; }
+  .d6-eda-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+  .d6-charts-row { display: flex; gap: 12px; padding: 12px 16px; height: calc(100% - 37px); overflow-x: auto; }
+  .d6-mini-chart { background: #0f1117; border: 1px solid #2d3142; border-radius: 8px;
+    padding: 10px; min-width: 160px; flex: 1; }
+  .d6-mc-title { font-size: 10px; color: #8b92a9; margin-bottom: 6px; text-transform: uppercase; }
+  .d6-mc-area { height: 80px; }
+
+  /* FAKE MAP ELEMENTS */
+  .fake-map { width: 100%; height: 100%; position: relative; overflow: hidden; }
+  .fake-map canvas-area { display: block; width: 100%; height: 100%; }
+
+  /* SHARED */
+  .color-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+  .tag-orange { background: rgba(249,115,22,0.15); color: #fb923c; }
+  .tag-red { background: rgba(239,68,68,0.15); color: #f87171; }
+  .tag-green { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .tag-yellow { background: rgba(234,179,8,0.15); color: #facc15; }
+  .section-title { font-size: 10px; font-weight: 600; color: #8b92a9; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <h1>AirTrace — Design Directions</h1>
+  <a href="#d1" class="active">D1 · Dark Split</a>
+  <a href="#d2">D2 · Light Pro</a>
+  <a href="#d3">D3 · Full-bleed</a>
+  <a href="#d4">D4 · EDA Focus</a>
+  <a href="#d5">D5 · Compact</a>
+  <a href="#d6">D6 · Horizontal</a>
+</div>
+
+<!-- ==================== DIRECTION 1 ==================== -->
+<section class="direction" id="d1" style="background:#0a0b0f">
+  <div class="direction-header">
+    <h2>D1 — Dark Split <span class="badge badge-blue">Recomendado</span></h2>
+    <p>Panel lateral derecho fijo con tabs EDA · Slider en barra inferior del mapa · InfoCard flotante</p>
+  </div>
+  <div class="mockup">
+    <div class="browser-bar">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <div class="url-bar">airtrace.vercel.app</div>
+    </div>
+    <div class="d1-app">
+      <!-- MAP -->
+      <div class="d1-map">
+        <div class="d1-topbar">
+          <div class="d1-logo">Air<span>Trace</span></div>
+          <div class="d1-controls">
+            <button class="btn-sm active">PM2.5</button>
+            <button class="btn-sm">PM10</button>
+            <button class="btn-sm">LSOA</button>
+          </div>
+        </div>
+        <!-- Fake map background -->
+        <svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.35" viewBox="0 0 800 520">
+          <rect width="800" height="520" fill="#141824"/>
+          <!-- streets -->
+          <line x1="0" y1="180" x2="800" y2="200" stroke="#2d3142" stroke-width="2"/>
+          <line x1="0" y1="300" x2="800" y2="280" stroke="#2d3142" stroke-width="2"/>
+          <line x1="200" y1="0" x2="180" y2="520" stroke="#2d3142" stroke-width="2"/>
+          <line x1="400" y1="0" x2="420" y2="520" stroke="#2d3142" stroke-width="1.5"/>
+          <line x1="600" y1="0" x2="580" y2="520" stroke="#2d3142" stroke-width="1.5"/>
+          <line x1="0" y1="100" x2="800" y2="120" stroke="#2d3142" stroke-width="1"/>
+          <line x1="0" y1="420" x2="800" y2="400" stroke="#2d3142" stroke-width="1"/>
+          <!-- Pollution segments coloured -->
+          <line x1="200" y1="180" x2="400" y2="200" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+          <line x1="400" y1="200" x2="600" y2="185" stroke="#f97316" stroke-width="3" stroke-linecap="round"/>
+          <line x1="180" y1="300" x2="420" y2="280" stroke="#eab308" stroke-width="3" stroke-linecap="round"/>
+          <line x1="420" y1="280" x2="580" y2="295" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+          <line x1="200" y1="100" x2="400" y2="120" stroke="#7c3aed" stroke-width="3" stroke-linecap="round"/>
+          <line x1="400" y1="120" x2="580" y2="105" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+          <line x1="200" y1="420" x2="420" y2="400" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+          <!-- Labels -->
+          <text x="80" y="165" fill="rgba(255,255,255,0.3)" font-size="10" font-family="Inter">Everton</text>
+          <text x="320" y="265" fill="rgba(255,255,255,0.3)" font-size="10" font-family="Inter">City Centre</text>
+          <text x="500" y="170" fill="rgba(255,255,255,0.3)" font-size="10" font-family="Inter">Kensington</text>
+        </svg>
+        <!-- InfoCard -->
+        <div class="d1-infocard">
+          <div class="infocard-title">Lime Street</div>
+          <div class="infocard-subtitle">City Centre · LSOA E01006512</div>
+          <div class="infocard-row">
+            <span class="infocard-key">PM2.5</span>
+            <span class="infocard-val" style="color:#ef4444">28.4 µg/m³</span>
+          </div>
+          <div class="infocard-row">
+            <span class="infocard-key">PM10</span>
+            <span class="infocard-val" style="color:#f97316">41.2 µg/m³</span>
+          </div>
+          <div class="infocard-row">
+            <span class="infocard-key">vs media Liverpool</span>
+            <span class="infocard-val" style="color:#f87171">+34%</span>
+          </div>
+          <div class="warn-badge">⚠ Over WHO limit</div>
+        </div>
+        <!-- Legend -->
+        <div style="position:absolute;bottom:80px;left:16px;z-index:10;background:rgba(15,17,23,0.85);border:1px solid #2d3142;border-radius:8px;padding:10px 12px;">
+          <div class="section-title" style="margin-bottom:6px">PM2.5 µg/m³</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;width:120px">
+              <div style="flex:1;background:#22c55e"></div>
+              <div style="flex:1;background:#eab308"></div>
+              <div style="flex:1;background:#f97316"></div>
+              <div style="flex:1;background:#ef4444"></div>
+              <div style="flex:1;background:#7c3aed"></div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;width:120px;font-size:9px;color:#8b92a9;margin-top:3px">
+            <span>0</span><span>15</span><span>35+</span>
+          </div>
+        </div>
+        <!-- Slider -->
+        <div class="d1-slider-bar">
+          <div class="slider-label">
+            <span>Mes activo</span>
+            <span style="color:#60a5fa;font-weight:600">Junio 2024</span>
+          </div>
+          <div class="slider-track">
+            <div class="slider-fill"></div>
+            <div class="slider-thumb"></div>
+          </div>
+          <div class="slider-months">
+            <span>Ene</span><span>Feb</span><span>Mar</span><span>Abr</span><span>May</span>
+            <span class="active-month">Jun</span><span>Jul</span><span>Ago</span>
+            <span>Sep</span><span>Oct</span><span>Nov</span><span>Dic</span>
+          </div>
+        </div>
+      </div>
+      <!-- PANEL -->
+      <div class="d1-panel">
+        <div class="panel-tabs">
+          <div class="panel-tab active">EDA</div>
+          <div class="panel-tab">LSOA</div>
+          <div class="panel-tab">Eventos</div>
+        </div>
+        <div class="panel-body">
+          <div class="panel-section">
+            <h3>Estadísticas — Jun 2024</h3>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <div class="stat-val" style="color:#ef4444">21.3</div>
+                <div class="stat-label">PM2.5 media µg/m³</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-val" style="color:#f97316">35.8</div>
+                <div class="stat-label">PM10 media µg/m³</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-val">2,341</div>
+                <div class="stat-label">Segmentos >15 µg</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-val">87%</div>
+                <div class="stat-label">Supera límite OMS</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-section">
+            <h3>Distribución PM2.5</h3>
+            <div class="mini-chart">
+              <div class="mini-chart-bars">
+                <div class="bar" style="height:30%;background:#22c55e"></div>
+                <div class="bar" style="height:45%;background:#22c55e"></div>
+                <div class="bar" style="height:60%;background:#eab308"></div>
+                <div class="bar" style="height:80%;background:#eab308"></div>
+                <div class="bar" style="height:100%;background:#f97316"></div>
+                <div class="bar" style="height:85%;background:#f97316"></div>
+                <div class="bar" style="height:65%;background:#ef4444"></div>
+                <div class="bar" style="height:40%;background:#ef4444"></div>
+                <div class="bar" style="height:20%;background:#7c3aed"></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-section">
+            <h3>Evolución mensual</h3>
+            <div class="mini-chart">
+              <svg viewBox="0 0 300 60" style="width:100%;height:100%">
+                <polyline points="0,45 30,40 60,42 90,35 120,38 150,25 180,30 210,20 240,28 270,22 300,28"
+                  fill="none" stroke="#3b82f6" stroke-width="2"/>
+                <polyline points="0,45 30,40 60,42 90,35 120,38 150,25 180,30 210,20 240,28 270,22 300,28"
+                  fill="url(#grad)" stroke="none" opacity="0.2"/>
+                <defs>
+                  <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#3b82f6"/>
+                    <stop offset="100%" stop-color="transparent"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== DIRECTION 2 ==================== -->
+<section class="direction" id="d2" style="background:#f1f5f9">
+  <div class="direction-header" style="color:#0f172a">
+    <h2 style="color:#0f172a">D2 — Light Professional <span class="badge" style="background:#dbeafe;color:#1d4ed8">Alternativa</span></h2>
+    <p style="color:#64748b">Header oscuro + cuerpo claro · Sidebar izquierdo con selector de mes · Mapa principal · Infocard inferior</p>
+  </div>
+  <div class="mockup" style="border-color:#e2e8f0">
+    <div class="browser-bar" style="background:#f8fafc;border-color:#e2e8f0">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <div class="url-bar" style="background:#fff;border-color:#e2e8f0;color:#64748b">airtrace.vercel.app</div>
+    </div>
+    <div class="d2-app">
+      <div class="d2-header">
+        <div class="d2-logo">Air<span class="accent">Trace</span> <span style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:400;margin-left:8px">Liverpool Air Quality</span></div>
+        <nav class="d2-nav">
+          <a class="active">Mapa</a><a>EDA</a><a>LSOA</a><a>Eventos</a>
+        </nav>
+      </div>
+      <div class="d2-main">
+        <div class="d2-sidebar">
+          <div class="d2-sidebar-header">
+            <div class="d2-sidebar-title">Filtros</div>
+            <div class="d2-sidebar-sub">Selecciona mes y contaminante</div>
+          </div>
+          <div class="d2-month-selector">
+            <div style="font-size:11px;font-weight:600;color:#0f172a;margin-bottom:6px">Mes 2024</div>
+            <div class="month-pills">
+              <span class="month-pill">Ene</span><span class="month-pill">Feb</span>
+              <span class="month-pill">Mar</span><span class="month-pill">Abr</span>
+              <span class="month-pill">May</span><span class="month-pill active">Jun</span>
+              <span class="month-pill">Jul</span><span class="month-pill">Ago</span>
+              <span class="month-pill">Sep</span><span class="month-pill">Oct</span>
+              <span class="month-pill">Nov</span><span class="month-pill">Dic</span>
+            </div>
+          </div>
+          <div class="d2-stats">
+            <div style="font-size:11px;font-weight:600;color:#0f172a;margin-bottom:8px">Jun 2024 — Resumen</div>
+            <div class="d2-stat">
+              <span class="d2-stat-label">PM2.5 media</span>
+              <span class="d2-stat-val" style="color:#dc2626">21.3 µg/m³</span>
+            </div>
+            <div class="d2-stat">
+              <span class="d2-stat-label">PM10 media</span>
+              <span class="d2-stat-val" style="color:#ea580c">35.8 µg/m³</span>
+            </div>
+            <div class="d2-stat">
+              <span class="d2-stat-label">Hotspots</span>
+              <span class="d2-stat-val">2,341</span>
+            </div>
+            <div class="d2-stat">
+              <span class="d2-stat-label">Supera OMS</span>
+              <span class="d2-stat-val" style="color:#dc2626">87%</span>
+            </div>
+          </div>
+        </div>
+        <div class="d2-map">
+          <div class="d2-map-inner">
+            <svg style="width:100%;height:100%;opacity:0.5" viewBox="0 0 600 500">
+              <rect width="600" height="500" fill="#d4dbe8"/>
+              <line x1="0" y1="150" x2="600" y2="170" stroke="#b0bcd4" stroke-width="2"/>
+              <line x1="0" y1="280" x2="600" y2="260" stroke="#b0bcd4" stroke-width="2"/>
+              <line x1="150" y1="0" x2="130" y2="500" stroke="#b0bcd4" stroke-width="2"/>
+              <line x1="350" y1="0" x2="370" y2="500" stroke="#b0bcd4" stroke-width="1.5"/>
+              <line x1="530" y1="0" x2="510" y2="500" stroke="#b0bcd4" stroke-width="1.5"/>
+              <line x1="130" y1="150" x2="370" y2="170" stroke="#dc2626" stroke-width="3.5"/>
+              <line x1="370" y1="170" x2="510" y2="155" stroke="#ea580c" stroke-width="3"/>
+              <line x1="130" y1="260" x2="370" y2="280" stroke="#eab308" stroke-width="3"/>
+              <line x1="370" y1="280" x2="510" y2="265" stroke="#22c55e" stroke-width="3"/>
+              <text x="60" y="140" fill="#64748b" font-size="11" font-family="Inter">Everton</text>
+              <text x="240" y="248" fill="#64748b" font-size="11" font-family="Inter">City Centre</text>
+            </svg>
+          </div>
+          <div class="d2-infocard">
+            <div class="d2-ic-title">Lime Street</div>
+            <div class="d2-ic-sub">City Centre · Jun 2024</div>
+            <div class="d2-ic-row">
+              <span style="color:#475569">PM2.5</span>
+              <span style="font-weight:700;color:#dc2626;font-variant-numeric:tabular-nums">28.4 µg/m³ <span class="d2-pill pill-red">⚠ WHO+</span></span>
+            </div>
+            <div class="d2-ic-row">
+              <span style="color:#475569">PM10</span>
+              <span style="font-weight:700;color:#ea580c;font-variant-numeric:tabular-nums">41.2 µg/m³ <span class="d2-pill pill-orange">Moderate</span></span>
+            </div>
+            <div class="d2-ic-row">
+              <span style="color:#475569">vs Liverpool avg</span>
+              <span style="font-weight:700;color:#dc2626">+34%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="d2-bottom">
+        <span class="d2-status">LUR Model · PM2.5 R²=0.602 · 21 sensors · Liverpool 2024</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== DIRECTION 3 ==================== -->
+<section class="direction" id="d3" style="background:#040509">
+  <div class="direction-header">
+    <h2>D3 — Full-bleed Map <span class="badge" style="background:#1c1033;color:#a78bfa">Visual impact</span></h2>
+    <p>Mapa ocupa 100% · Controles en glass-morphism · Panel lateral translúcido colapsable</p>
+  </div>
+  <div class="mockup">
+    <div class="browser-bar">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <div class="url-bar">airtrace.vercel.app</div>
+    </div>
+    <div class="d3-app">
+      <svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.45" viewBox="0 0 900 590">
+        <rect width="900" height="590" fill="#111828"/>
+        <line x1="0" y1="200" x2="900" y2="220" stroke="#2d3142" stroke-width="1.5"/>
+        <line x1="0" y1="340" x2="900" y2="320" stroke="#2d3142" stroke-width="1.5"/>
+        <line x1="230" y1="0" x2="210" y2="590" stroke="#2d3142" stroke-width="1.5"/>
+        <line x1="460" y1="0" x2="480" y2="590" stroke="#2d3142" stroke-width="1.5"/>
+        <line x1="680" y1="0" x2="660" y2="590" stroke="#2d3142" stroke-width="1.5"/>
+        <line x1="210" y1="200" x2="480" y2="220" stroke="#ef4444" stroke-width="4"/>
+        <line x1="480" y1="220" x2="660" y2="205" stroke="#f97316" stroke-width="3.5"/>
+        <line x1="210" y1="320" x2="480" y2="340" stroke="#eab308" stroke-width="3.5"/>
+        <line x1="480" y1="340" x2="660" y2="325" stroke="#22c55e" stroke-width="3.5"/>
+        <line x1="210" y1="100" x2="480" y2="115" stroke="#7c3aed" stroke-width="3.5"/>
+        <line x1="480" y1="115" x2="660" y2="100" stroke="#ef4444" stroke-width="3.5"/>
+        <line x1="210" y1="450" x2="480" y2="465" stroke="#22c55e" stroke-width="3.5"/>
+        <text x="90" y="190" fill="rgba(255,255,255,0.25)" font-size="12" font-family="Inter">Everton</text>
+        <text x="320" y="310" fill="rgba(255,255,255,0.25)" font-size="12" font-family="Inter">City Centre</text>
+        <text x="560" y="195" fill="rgba(255,255,255,0.25)" font-size="12" font-family="Inter">Kensington</text>
+        <text x="90" y="90" fill="rgba(255,255,255,0.25)" font-size="12" font-family="Inter">Walton</text>
+      </svg>
+      <div class="d3-topbar">
+        <div class="d3-logo">Air<em>Trace</em></div>
+        <div class="d3-topcontrols">
+          <button class="glass-btn active">PM2.5</button>
+          <button class="glass-btn">PM10</button>
+          <button class="glass-btn">LSOA</button>
+          <button class="glass-btn">Eventos</button>
+        </div>
+      </div>
+      <div class="d3-infocard">
+        <div style="font-size:13px;font-weight:700;color:#f0f2f7;margin-bottom:4px">Lime Street</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.45);margin-bottom:10px">City Centre · Jun 2024</div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.08)">
+          <span style="font-size:11px;color:rgba(255,255,255,0.5)">PM2.5</span>
+          <span style="font-size:14px;font-weight:700;color:#ef4444">28.4 µg/m³</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0">
+          <span style="font-size:11px;color:rgba(255,255,255,0.5)">PM10</span>
+          <span style="font-size:14px;font-weight:700;color:#f97316">41.2 µg/m³</span>
+        </div>
+        <div style="font-size:10px;background:rgba(239,68,68,0.15);color:#fca5a5;border-radius:4px;padding:4px 8px;margin-top:8px">⚠ Exceeds WHO 2021 guideline</div>
+      </div>
+      <div class="d3-panel">
+        <div class="section-title">Estadísticas EDA — Jun</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">
+          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px">
+            <div style="font-size:18px;font-weight:700;color:#ef4444">21.3</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4)">PM2.5 µg/m³</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px">
+            <div style="font-size:18px;font-weight:700;color:#f97316">35.8</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4)">PM10 µg/m³</div>
+          </div>
+        </div>
+        <div class="section-title">Distribución</div>
+        <div style="height:60px;background:rgba(255,255,255,0.03);border-radius:6px;display:flex;align-items:flex-end;gap:2px;padding:8px 8px 0;margin-bottom:12px">
+          <div style="flex:1;height:30%;background:#22c55e;border-radius:2px 2px 0 0"></div>
+          <div style="flex:1;height:50%;background:#eab308;border-radius:2px 2px 0 0"></div>
+          <div style="flex:1;height:75%;background:#f97316;border-radius:2px 2px 0 0"></div>
+          <div style="flex:1;height:100%;background:#ef4444;border-radius:2px 2px 0 0"></div>
+          <div style="flex:1;height:80%;background:#ef4444;border-radius:2px 2px 0 0"></div>
+          <div style="flex:1;height:55%;background:#f97316;border-radius:2px 2px 0 0"></div>
+          <div style="flex:1;height:30%;background:#eab308;border-radius:2px 2px 0 0"></div>
+          <div style="flex:1;height:15%;background:#7c3aed;border-radius:2px 2px 0 0"></div>
+        </div>
+        <div class="section-title">Top LSOAs</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+            <span style="color:rgba(255,255,255,0.6)">City Centre</span><span style="color:#ef4444;font-weight:700">28.4</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+            <span style="color:rgba(255,255,255,0.6)">Kensington</span><span style="color:#f97316;font-weight:700">22.1</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0">
+            <span style="color:rgba(255,255,255,0.6)">Walton</span><span style="color:#eab308;font-weight:700">18.7</span>
+          </div>
+        </div>
+      </div>
+      <div class="d3-legend">
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-right:4px">PM2.5</div>
+        <div class="legend-seg" style="background:#22c55e"></div>
+        <div class="legend-seg" style="background:#eab308"></div>
+        <div class="legend-seg" style="background:#f97316"></div>
+        <div class="legend-seg" style="background:#ef4444"></div>
+        <div class="legend-seg" style="background:#7c3aed"></div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-left:4px">35+ µg/m³</div>
+      </div>
+      <div class="d3-bottombar">
+        <div class="d3-slider-row">
+          <div>
+            <div class="d3-month-display">Junio 2024</div>
+            <div class="d3-month-sub">← arrastra para cambiar mes →</div>
+          </div>
+          <div class="d3-track">
+            <div class="d3-fill"></div>
+            <div class="d3-thumb"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== DIRECTION 4 ==================== -->
+<section class="direction" id="d4" style="background:#07080e">
+  <div class="direction-header">
+    <h2>D4 — EDA Panel Focus <span class="badge badge-green">Analyst-friendly</span></h2>
+    <p>Panel EDA a la derecha siempre visible · Slider integrado bajo el mapa · 4 mini-charts siempre activos</p>
+  </div>
+  <div class="mockup">
+    <div class="browser-bar">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <div class="url-bar">airtrace.vercel.app</div>
+    </div>
+    <div class="d4-app">
+      <div class="d4-left">
+        <div class="d4-map-area">
+          <svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.4" viewBox="0 0 560 460">
+            <rect width="560" height="460" fill="#141824"/>
+            <line x1="0" y1="170" x2="560" y2="185" stroke="#2d3142" stroke-width="1.5"/>
+            <line x1="0" y1="290" x2="560" y2="275" stroke="#2d3142" stroke-width="1.5"/>
+            <line x1="160" y1="0" x2="145" y2="460" stroke="#2d3142" stroke-width="1.5"/>
+            <line x1="350" y1="0" x2="365" y2="460" stroke="#2d3142" stroke-width="1.5"/>
+            <line x1="145" y1="170" x2="365" y2="185" stroke="#ef4444" stroke-width="3.5"/>
+            <line x1="365" y1="185" x2="500" y2="172" stroke="#f97316" stroke-width="3"/>
+            <line x1="145" y1="275" x2="365" y2="290" stroke="#22c55e" stroke-width="3"/>
+            <line x1="365" y1="290" x2="500" y2="278" stroke="#eab308" stroke-width="3"/>
+          </svg>
+          <!-- Floating infocard on map -->
+          <div style="position:absolute;top:16px;left:16px;z-index:10;background:#1a1d27;border:1px solid #2d3142;border-radius:10px;padding:12px;width:200px">
+            <div style="font-size:12px;font-weight:600;color:#f0f2f7;margin-bottom:2px">Lime Street</div>
+            <div style="font-size:10px;color:#8b92a9;margin-bottom:8px">City Centre · Jun 2024</div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:#8b92a9">PM2.5</span><span style="font-weight:700;color:#ef4444">28.4 µg/m³</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:#8b92a9">PM10</span><span style="font-weight:700;color:#f97316">41.2 µg/m³</span></div>
+          </div>
+        </div>
+        <div class="d4-slider-area">
+          <div class="d4-month-badge">Jun 2024</div>
+          <div style="flex:1;height:3px;background:#2d3142;border-radius:2px;position:relative">
+            <div style="height:3px;background:#3b82f6;width:46%;border-radius:2px"></div>
+            <div style="width:14px;height:14px;background:#fff;border:2px solid #3b82f6;border-radius:50%;position:absolute;top:-6px;left:46%;transform:translateX(-50%)"></div>
+          </div>
+          <div style="font-size:10px;color:#8b92a9">Dic 2024</div>
+        </div>
+      </div>
+      <div class="d4-right">
+        <div class="d4-right-header">
+          <div class="d4-right-title">Análisis EDA — Jun 2024</div>
+          <span class="tag tag-orange">PM2.5 ▲34%</span>
+        </div>
+        <div class="d4-charts">
+          <div class="chart-card">
+            <div class="chart-title">Distribución PM2.5</div>
+            <div class="chart-area">
+              <div class="bar-chart">
+                <div class="bc-bar" style="height:25%;background:#22c55e"></div>
+                <div class="bc-bar" style="height:40%;background:#22c55e"></div>
+                <div class="bc-bar" style="height:60%;background:#eab308"></div>
+                <div class="bc-bar" style="height:90%;background:#eab308"></div>
+                <div class="bc-bar" style="height:100%;background:#f97316"></div>
+                <div class="bc-bar" style="height:75%;background:#ef4444"></div>
+                <div class="bc-bar" style="height:45%;background:#ef4444"></div>
+                <div class="bc-bar" style="height:20%;background:#7c3aed"></div>
+              </div>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Evolución mensual PM2.5</div>
+            <div class="chart-area">
+              <svg viewBox="0 0 340 72" style="width:100%;height:100%">
+                <polyline points="0,50 30,45 60,48 90,38 120,42 150,28 180,32 210,22 240,30 270,25 300,28 340,24"
+                  fill="none" stroke="#3b82f6" stroke-width="2"/>
+                <circle cx="150" cy="28" r="4" fill="#3b82f6"/>
+              </svg>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">PM2.5 vs PM10</div>
+            <div class="chart-area">
+              <svg viewBox="0 0 340 72" style="width:100%;height:100%">
+                <circle cx="80" cy="50" r="4" fill="#3b82f6" opacity="0.7"/>
+                <circle cx="120" cy="40" r="5" fill="#3b82f6" opacity="0.7"/>
+                <circle cx="160" cy="30" r="6" fill="#ef4444" opacity="0.7"/>
+                <circle cx="200" cy="45" r="4" fill="#3b82f6" opacity="0.7"/>
+                <circle cx="240" cy="20" r="7" fill="#ef4444" opacity="0.7"/>
+                <circle cx="280" cy="35" r="5" fill="#f97316" opacity="0.7"/>
+                <line x1="60" y1="62" x2="300" y2="15" stroke="#8b92a9" stroke-width="1" stroke-dasharray="4"/>
+              </svg>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Top 5 Barrios por PM2.5</div>
+            <div class="chart-area">
+              <div style="display:flex;flex-direction:column;gap:4px;padding-top:4px">
+                <div style="display:flex;align-items:center;gap:6px;font-size:10px">
+                  <span style="color:#8b92a9;width:80px;flex-shrink:0">City Centre</span>
+                  <div style="flex:1;height:8px;background:#2d3142;border-radius:4px"><div style="width:85%;height:8px;background:#ef4444;border-radius:4px"></div></div>
+                  <span style="color:#ef4444;font-weight:700;width:32px">28.4</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:10px">
+                  <span style="color:#8b92a9;width:80px;flex-shrink:0">Kensington</span>
+                  <div style="flex:1;height:8px;background:#2d3142;border-radius:4px"><div style="width:66%;height:8px;background:#f97316;border-radius:4px"></div></div>
+                  <span style="color:#f97316;font-weight:700;width:32px">22.1</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:10px">
+                  <span style="color:#8b92a9;width:80px;flex-shrink:0">Walton</span>
+                  <div style="flex:1;height:8px;background:#2d3142;border-radius:4px"><div style="width:56%;height:8px;background:#eab308;border-radius:4px"></div></div>
+                  <span style="color:#eab308;font-weight:700;width:32px">18.7</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== DIRECTION 5 ==================== -->
+<section class="direction" id="d5" style="background:#020305">
+  <div class="direction-header">
+    <h2>D5 — Compact Dark <span class="badge" style="background:#1a1a2e;color:#818cf8">Minimal</span></h2>
+    <p>Topbar ultra-compacto · Sidebar de iconos · Mapa full · Panel lateral colapsable · Máxima densidad</p>
+  </div>
+  <div class="mockup">
+    <div class="browser-bar">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <div class="url-bar">airtrace.vercel.app</div>
+    </div>
+    <div class="d5-app">
+      <div class="d5-topbar">
+        <div class="d5-logo">Air<span>Trace</span></div>
+        <nav class="d5-nav">
+          <a class="active">Mapa</a><a>EDA</a><a>LSOA</a>
+        </nav>
+        <div style="margin-left:auto;font-size:11px;color:#8b92a9">Liverpool · Jun 2024</div>
+      </div>
+      <div class="d5-main">
+        <div class="d5-sidebar">
+          <div class="d5-icon active">🗺</div>
+          <div class="d5-icon">📊</div>
+          <div class="d5-icon">🏘</div>
+          <div class="d5-icon">📍</div>
+        </div>
+        <div class="d5-content">
+          <div class="d5-map">
+            <svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.4" viewBox="0 0 700 510">
+              <rect width="700" height="510" fill="#111420"/>
+              <line x1="0" y1="180" x2="700" y2="195" stroke="#1a1d27" stroke-width="2"/>
+              <line x1="0" y1="310" x2="700" y2="295" stroke="#1a1d27" stroke-width="2"/>
+              <line x1="200" y1="0" x2="185" y2="510" stroke="#1a1d27" stroke-width="2"/>
+              <line x1="420" y1="0" x2="435" y2="510" stroke="#1a1d27" stroke-width="2"/>
+              <line x1="185" y1="180" x2="435" y2="195" stroke="#ef4444" stroke-width="3"/>
+              <line x1="435" y1="195" x2="590" y2="182" stroke="#f97316" stroke-width="3"/>
+              <line x1="185" y1="295" x2="435" y2="310" stroke="#22c55e" stroke-width="3"/>
+              <line x1="435" y1="310" x2="590" y2="298" stroke="#eab308" stroke-width="3"/>
+            </svg>
+          </div>
+          <div class="d5-panel">
+            <div class="section-title">Jun 2024 — EDA</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:10px">
+              <div style="background:#0d0f18;border:1px solid #1a1d27;border-radius:6px;padding:8px">
+                <div style="font-size:16px;font-weight:700;color:#ef4444">21.3</div>
+                <div style="font-size:9px;color:#8b92a9">PM2.5 µg/m³</div>
+              </div>
+              <div style="background:#0d0f18;border:1px solid #1a1d27;border-radius:6px;padding:8px">
+                <div style="font-size:16px;font-weight:700;color:#f97316">35.8</div>
+                <div style="font-size:9px;color:#8b92a9">PM10 µg/m³</div>
+              </div>
+            </div>
+            <div class="section-title">Distribución</div>
+            <div style="height:48px;background:#0d0f18;border-radius:4px;display:flex;align-items:flex-end;gap:2px;padding:6px 6px 0;margin-bottom:10px">
+              <div style="flex:1;height:30%;background:#22c55e;border-radius:1px 1px 0 0"></div>
+              <div style="flex:1;height:55%;background:#eab308;border-radius:1px 1px 0 0"></div>
+              <div style="flex:1;height:80%;background:#f97316;border-radius:1px 1px 0 0"></div>
+              <div style="flex:1;height:100%;background:#ef4444;border-radius:1px 1px 0 0"></div>
+              <div style="flex:1;height:70%;background:#ef4444;border-radius:1px 1px 0 0"></div>
+              <div style="flex:1;height:40%;background:#7c3aed;border-radius:1px 1px 0 0"></div>
+            </div>
+            <div class="section-title">Top LSOAs</div>
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 0;border-bottom:1px solid #1a1d27">
+                <span style="color:#8b92a9">City Centre</span><span style="color:#ef4444;font-weight:600">28.4</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 0;border-bottom:1px solid #1a1d27">
+                <span style="color:#8b92a9">Kensington</span><span style="color:#f97316;font-weight:600">22.1</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 0">
+                <span style="color:#8b92a9">Walton</span><span style="color:#eab308;font-weight:600">18.7</span>
+              </div>
+            </div>
+          </div>
+          <div class="d5-bottom">
+            <div class="d5-slider-row">
+              <div class="d5-month">Jun 2024</div>
+              <div class="d5-track">
+                <div class="d5-fill"></div>
+                <div class="d5-thumb"></div>
+              </div>
+              <div style="font-size:10px;color:#8b92a9">Dic</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== DIRECTION 6 ==================== -->
+<section class="direction" id="d6" style="background:#0a0b0f">
+  <div class="direction-header">
+    <h2>D6 — Horizontal Split <span class="badge" style="background:#14312a;color:#34d399">EDA + Mapa</span></h2>
+    <p>Mapa arriba (65% alto) + franja EDA abajo siempre visible · InfoStrip lateral derecho · Tabs EDA en footer</p>
+  </div>
+  <div class="mockup">
+    <div class="browser-bar">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <div class="url-bar">airtrace.vercel.app</div>
+    </div>
+    <div class="d6-app">
+      <div class="d6-header">
+        <div class="d6-logo">Air<em>Trace</em></div>
+        <span style="font-size:11px;color:#8b92a9">Liverpool Air Quality · Jun 2024</span>
+        <div class="d6-controls">
+          <button class="btn-sm active">PM2.5</button>
+          <button class="btn-sm">PM10</button>
+          <button class="btn-sm">LSOA</button>
+        </div>
+      </div>
+      <div class="d6-main">
+        <div class="d6-top">
+          <div class="d6-map">
+            <svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.4" viewBox="0 0 660 330">
+              <rect width="660" height="330" fill="#141824"/>
+              <line x1="0" y1="130" x2="660" y2="142" stroke="#2d3142" stroke-width="1.5"/>
+              <line x1="0" y1="220" x2="660" y2="210" stroke="#2d3142" stroke-width="1.5"/>
+              <line x1="180" y1="0" x2="165" y2="330" stroke="#2d3142" stroke-width="1.5"/>
+              <line x1="380" y1="0" x2="395" y2="330" stroke="#2d3142" stroke-width="1.5"/>
+              <line x1="165" y1="130" x2="395" y2="142" stroke="#ef4444" stroke-width="3.5"/>
+              <line x1="395" y1="142" x2="540" y2="132" stroke="#f97316" stroke-width="3"/>
+              <line x1="165" y1="210" x2="395" y2="220" stroke="#22c55e" stroke-width="3"/>
+              <text x="70" y="122" fill="rgba(255,255,255,0.3)" font-size="10" font-family="Inter">Everton</text>
+              <text x="265" y="200" fill="rgba(255,255,255,0.3)" font-size="10" font-family="Inter">City Centre</text>
+            </svg>
+            <!-- Slider on map -->
+            <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(15,17,23,0.92);padding:10px 16px;border-top:1px solid #2d3142">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="font-size:12px;font-weight:700;color:#60a5fa;min-width:72px">Jun 2024</span>
+                <div style="flex:1;height:4px;background:#2d3142;border-radius:2px;position:relative">
+                  <div style="width:46%;height:4px;background:#3b82f6;border-radius:2px"></div>
+                  <div style="width:16px;height:16px;background:#fff;border:2px solid #3b82f6;border-radius:50%;position:absolute;top:-6px;left:46%;transform:translateX(-50%)"></div>
+                </div>
+                <span style="font-size:11px;color:#8b92a9">Dic</span>
+              </div>
+            </div>
+          </div>
+          <div class="d6-infostrip">
+            <div class="section-title">Segmento seleccionado</div>
+            <div style="font-size:13px;font-weight:600;color:#f0f2f7;margin-bottom:2px">Lime Street</div>
+            <div style="font-size:11px;color:#8b92a9;margin-bottom:12px">City Centre</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="background:#0f1117;border:1px solid #2d3142;border-radius:8px;padding:10px;text-align:center">
+                <div style="font-size:22px;font-weight:800;color:#ef4444;font-variant-numeric:tabular-nums">28.4</div>
+                <div style="font-size:10px;color:#8b92a9">PM2.5 µg/m³</div>
+                <div style="font-size:9px;background:rgba(239,68,68,0.15);color:#fca5a5;border-radius:4px;padding:2px 6px;margin-top:6px">⚠ Over WHO limit</div>
+              </div>
+              <div style="background:#0f1117;border:1px solid #2d3142;border-radius:8px;padding:10px;text-align:center">
+                <div style="font-size:22px;font-weight:800;color:#f97316;font-variant-numeric:tabular-nums">41.2</div>
+                <div style="font-size:10px;color:#8b92a9">PM10 µg/m³</div>
+              </div>
+              <div style="background:#0f1117;border:1px solid #2d3142;border-radius:8px;padding:8px">
+                <div style="font-size:11px;color:#8b92a9;margin-bottom:4px">vs Liverpool avg</div>
+                <div style="font-size:16px;font-weight:700;color:#f87171">+34%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="d6-bottom">
+          <div class="d6-eda-tabs">
+            <div class="d6-eda-tab active">Distribución PM</div>
+            <div class="d6-eda-tab">Evolución temporal</div>
+            <div class="d6-eda-tab">PM2.5 vs PM10</div>
+            <div class="d6-eda-tab">Top LSOAs</div>
+          </div>
+          <div class="d6-charts-row">
+            <div class="d6-mini-chart">
+              <div class="d6-mc-title">PM2.5 Distribution</div>
+              <div class="d6-mc-area" style="display:flex;align-items:flex-end;gap:2px">
+                <div style="flex:1;height:25%;background:#22c55e;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:45%;background:#eab308;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:75%;background:#f97316;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:100%;background:#ef4444;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:80%;background:#ef4444;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:50%;background:#f97316;border-radius:2px 2px 0 0"></div>
+                <div style="flex:1;height:25%;background:#7c3aed;border-radius:2px 2px 0 0"></div>
+              </div>
+            </div>
+            <div class="d6-mini-chart">
+              <div class="d6-mc-title">Monthly Trend</div>
+              <div class="d6-mc-area">
+                <svg viewBox="0 0 180 80" style="width:100%;height:100%">
+                  <polyline points="0,55 15,50 30,52 45,42 60,46 75,30 90,35 105,24 120,32 135,27 150,30 165,26"
+                    fill="none" stroke="#3b82f6" stroke-width="2"/>
+                </svg>
+              </div>
+            </div>
+            <div class="d6-mini-chart">
+              <div class="d6-mc-title">Scatter PM2.5/PM10</div>
+              <div class="d6-mc-area">
+                <svg viewBox="0 0 180 80" style="width:100%;height:100%">
+                  <circle cx="40" cy="55" r="4" fill="#3b82f6" opacity="0.6"/>
+                  <circle cx="70" cy="40" r="5" fill="#3b82f6" opacity="0.6"/>
+                  <circle cx="100" cy="28" r="6" fill="#ef4444" opacity="0.6"/>
+                  <circle cx="130" cy="45" r="4" fill="#f97316" opacity="0.6"/>
+                  <circle cx="155" cy="18" r="7" fill="#ef4444" opacity="0.6"/>
+                </svg>
+              </div>
+            </div>
+            <div class="d6-mini-chart">
+              <div class="d6-mc-title">Top LSOAs</div>
+              <div class="d6-mc-area" style="display:flex;flex-direction:column;gap:3px;padding-top:4px">
+                <div style="display:flex;align-items:center;gap:4px;font-size:9px">
+                  <span style="color:#8b92a9;width:65px;flex-shrink:0">City Centre</span>
+                  <div style="flex:1;height:7px;background:#1a1d27;border-radius:3px"><div style="width:85%;height:7px;background:#ef4444;border-radius:3px"></div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:4px;font-size:9px">
+                  <span style="color:#8b92a9;width:65px;flex-shrink:0">Kensington</span>
+                  <div style="flex:1;height:7px;background:#1a1d27;border-radius:3px"><div style="width:66%;height:7px;background:#f97316;border-radius:3px"></div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:4px;font-size:9px">
+                  <span style="color:#8b92a9;width:65px;flex-shrink:0">Walton</span>
+                  <div style="flex:1;height:7px;background:#1a1d27;border-radius:3px"><div style="width:56%;height:7px;background:#eab308;border-radius:3px"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Nav active state on scroll
+  const sections = document.querySelectorAll('.direction');
+  const links = document.querySelectorAll('.nav a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => { if (window.scrollY >= s.offsetTop - 80) current = s.id; });
+    links.forEach(l => { l.classList.toggle('active', l.getAttribute('href') === '#' + current); });
+  });
+</script>
+</body>
+</html>

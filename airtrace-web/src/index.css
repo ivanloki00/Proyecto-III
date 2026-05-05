@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  /* Pollution score palette A–F (PRD FR-03, UX-DR-02) */
+  --color-score-a: #00c864;
+  --color-score-b: #c8e632;
+  --color-score-c: #ffc800;
+  --color-score-d: #ff8200;
+  --color-score-e: #e63232;
+  --color-score-f: #960096;
+
+  /* UI dark theme tokens (UX-DR-01) */
+  --color-background: #0f1117;
+  --color-surface: #1a1d27;
+  --color-border: #2d3142;
+  --color-text-primary: #f0f2f7;
+  --color-text-muted: #8b92a9;
+  --color-accent: #3b82f6;
+
+  /* Typography */
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+/* Base dark theme */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0f1117;
+  color: #f0f2f7;
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tabular numbers for all data figures (UX-DR-04) */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
