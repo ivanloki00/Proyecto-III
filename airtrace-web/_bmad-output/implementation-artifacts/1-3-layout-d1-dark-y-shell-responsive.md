@@ -1,6 +1,6 @@
 # Story 1.3: Layout D1 Dark y Shell Responsive
 
-Status: review
+Status: done
 
 ## Story
 
@@ -202,3 +202,10 @@ claude-sonnet-4-6
 - `index.html` (modificado — título + Inter font links)
 - `src/App.tsx` (modificado — layout shell completo)
 - `src/components/SidePanel.tsx` (creado)
+
+### Review Findings
+
+- [x] [Review][Patch] `onToggle` prop declarada en `SidePanelProps` pero nunca usada dentro del componente [src/components/SidePanel.tsx] — FIXED: eliminada de props e interfaz
+- [x] [Review][Patch] Colores hardcodeados `text-[#f0f2f7]` y `text-[#8b92a9]` — usar tokens `text-text-primary` y `text-text-muted` [src/App.tsx, src/components/SidePanel.tsx] — FIXED
+- [x] [Review][Patch] `lang="en"` en index.html — la app es en español, usar `lang="es"` [index.html] — FIXED
+- [x] [Review][Defer] `favicon.svg` referenciado en index.html pero no existe en public/ — 404 silencioso en consola [index.html] — deferred, pre-existing desde scaffold Story 1.1; añadir favicon en sprint de pulido

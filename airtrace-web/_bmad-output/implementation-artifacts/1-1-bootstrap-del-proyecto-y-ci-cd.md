@@ -1,6 +1,6 @@
 # Story 1.1: Bootstrap del Proyecto y CI/CD
 
-Status: review
+Status: done
 
 ## Story
 
@@ -212,3 +212,10 @@ claude-sonnet-4-6
 - `.github/workflows/ci.yml` (creado)
 - `vercel.json` (creado)
 - `index.html`, `src/main.tsx`, `src/vite-env.d.ts`, `tsconfig*.json`, `eslint.config.js`, `public/` (sin cambios del scaffold)
+
+### Review Findings
+
+- [x] [Review][Patch] recharts instalado como ^3.8.1 — spec requiere 2.x [package.json] — FIXED: degradado a ^2.15.4
+- [x] [Review][Defer] Sin SPA rewrite en vercel.json [vercel.json] — deferred, no hay React Router en este sprint; añadir cuando se agregue routing
+- [x] [Review][Defer] @types/node ^24.12.2 vs Node 20 en CI [package.json] — deferred, pre-existing; no afecta SPA (no se usan APIs de Node en src/)
+- [x] [Review][Defer] Dual-definition de design tokens en tailwind.config.ts y src/index.css @theme [tailwind.config.ts, src/index.css] — deferred, intencional para compatibilidad con shadcn/ui CLI y plugins de editor

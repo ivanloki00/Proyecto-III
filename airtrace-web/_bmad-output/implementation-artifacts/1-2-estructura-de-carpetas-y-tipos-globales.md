@@ -1,6 +1,6 @@
 # Story 1.2: Estructura de Carpetas y Tipos Globales
 
-Status: review
+Status: done
 
 ## Story
 
@@ -211,3 +211,10 @@ claude-sonnet-4-6
 - `src/types/geojson.ts` (creado)
 - `src/types/store.ts` (creado)
 - `src/store/useAppStore.ts` (creado)
+
+### Review Findings
+
+- [x] [Review][Patch] `score: string` sin narrowing — usar `'A' | 'B' | 'C' | 'D' | 'E' | 'F'` [src/types/geojson.ts] — FIXED: tipo `ScoreGrade`
+- [x] [Review][Patch] `road_type: string` sin narrowing — usar `'primary' | 'secondary' | 'residential' | 'other'` [src/types/geojson.ts] — FIXED: tipo `RoadType`
+- [x] [Review][Defer] Campo mensual no definido en `FeatureProps` (`pm25_annual` vs futuro `pm25_monthly`) [src/types/geojson.ts] — deferred, AR-10 bloquea datos mensuales; resolver cuando el pipeline Python genere los GeoJSONs mensuales
+- [x] [Review][Defer] `useAppStore` default export vs named export [src/store/useAppStore.ts] — deferred, pre-existing; sin importaciones rotas aún; cambiar a `export const` cuando se establezca la primera importación externa

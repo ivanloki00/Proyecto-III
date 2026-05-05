@@ -11,7 +11,7 @@ const useAppStore = create<AppState & StoreActions>()((set) => ({
   setCache: (key, data) =>
     set((state) => ({ cache: new Map(state.cache).set(key, data) })),
 
-  isLoading: false,
+  isLoading: true,
   setIsLoading: (loading) => set({ isLoading: loading }),
 
   error: null,

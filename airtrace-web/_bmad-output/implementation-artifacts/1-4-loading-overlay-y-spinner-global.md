@@ -1,6 +1,6 @@
 # Story 1.4: Loading Overlay y Spinner Global
 
-Status: review
+Status: done
 
 ## Story
 
@@ -36,6 +36,10 @@ So that I know the app is working and not frozen.
 - [x] Task 4 — Verificar compilación (AC: 1–4)
   - [x] `npx tsc --noEmit` ✅ sin errores
   - [x] `npm run build` ✅ 284ms sin errores
+
+### Review Findings
+
+- [x] [Review][Defer] `pointer-events-none` no bloquea foco keyboard si se añaden elementos interactivos al overlay en el futuro [src/components/LoadingOverlay.tsx] — deferred, sin focusable children actualmente; usar `inert` attribute si se añade un botón cancelar
 
 ## Dev Notes
 

@@ -15,10 +15,13 @@ export type MonthKey =
   | '2024-11'
   | '2024-12'
 
+export type ScoreGrade = 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+export type RoadType = 'primary' | 'secondary' | 'residential' | 'other'
+
 export interface FeatureProps {
   name: string | null
-  road_type: string
-  score: string
+  road_type: RoadType
+  score: ScoreGrade
   pm25_annual: number
   pm10_annual: number
 }

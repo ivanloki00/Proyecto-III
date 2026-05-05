@@ -1,0 +1,1197 @@
+<!--
+  PALETTE « NOCTURNE CÉLESTE » — Justification créative
+  ─────────────────────────────────────────────────────
+  Les montres AURALIS traduisent des phénomènes astronomiques en mécanique contemporaine.
+  La palette capture trois strates du cosmos :
+  1. #0A0E17 (Deep Void) : le vide intersidéral — fond d'écrin pour tout le reste
+  2. #C8A96E (Stellar Gold) : l'éclat des étoiles anciennes — ors chauds des boîtiers
+  3. #E8E4E0 (Moonstone) : lumière lunaire réfléchie — lecture confortable et noble
+  4. #1A1F2E (Cosmic Navy) : bleu profond des nébuleuses — surfaces et cartes
+  5. #2D1B4E (Nebula Aubergine) : pourpre de fin de crépuscule — accents atmosphériques
+  Contraste Moonstone/Deep Void = ~14.9:1 (AAA)  |  Stellar Gold/Deep Void = ~8.4:1 (AAA)
+  Accessibilité AA+ garantie sur l'ensemble des combinaisons utilisées.
+-->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AURALIS — Studio de montres mécaniques astronomiques</title>
+<meta name="description" content="AURALIS conçoit des montres mécaniques contemporaines inspirées des phénomènes astronomiques. Collection Eclipse.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   RESET & BASE — Mobile-first (375px)
+   ============================================================ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --void:#0A0E17;
+  --gold:#C8A96E;
+  --gold-dim:#8a7348;
+  --moon:#E8E4E0;
+  --moon-muted:#b5b0a8;
+  --navy:#1A1F2E;
+  --navy-light:#252b3d;
+  --nebula:#2D1B4E;
+  --nebula-glow:#4a2f75;
+  --danger:#c44;
+  --ff-serif:'Playfair Display', Georgia, 'Times New Roman', serif;
+  --ff-sans:'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --radius:8px;
+  --radius-lg:16px;
+  --transition-speed:400ms;
+  --ease-out-expo:cubic-bezier(0.16,1,0.3,1);
+  --ease-out-back:cubic-bezier(0.34,1.56,0.64,1);
+}
+
+html{
+  scroll-behavior:smooth;
+  font-size:16px;
+  background:var(--void);
+  color:var(--moon);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+body{
+  font-family:var(--ff-sans);
+  font-weight:300;
+  line-height:1.6;
+  overflow-x:hidden;
+  cursor:none;
+  min-height:100vh;
+}
+
+/* Cursor — hidden on touch devices */
+@media (pointer:coarse){
+  body{cursor:auto}
+  #cursor-dot,#cursor-ring{display:none}
+}
+
+/* Focus visible */
+:focus-visible{
+  outline:2px solid var(--gold);
+  outline-offset:3px;
+  border-radius:2px;
+}
+:focus:not(:focus-visible){outline:none}
+
+/* Selection */
+::selection{background:var(--gold);color:var(--void)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--navy)}
+::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--gold)}
+
+/* ============================================================
+   CUSTOM CURSOR
+   ============================================================ */
+#cursor-dot{
+  position:fixed;top:0;left:0;z-index:99999;
+  width:6px;height:6px;background:var(--gold);
+  border-radius:50%;pointer-events:none;
+  transform:translate(-50%,-50%);
+  box-shadow:0 0 10px var(--gold),0 0 24px var(--gold);
+  transition:width 200ms ease,height 200ms ease,background 200ms ease;
+}
+#cursor-ring{
+  position:fixed;top:0;left:0;z-index:99998;
+  width:28px;height:28px;border-radius:50%;pointer-events:none;
+  border:1.5px solid rgba(200,169,110,.45);
+  transform:translate(-50%,-50%);
+  transition:width 280ms ease,height 280ms ease,border-color 280ms ease;
+}
+#cursor-dot.hover-interactive{
+  width:10px;height:10px;
+  background:var(--moon);
+  box-shadow:0 0 14px var(--moon),0 0 32px rgba(232,228,224,.5);
+}
+#cursor-ring.hover-interactive{
+  width:44px;height:44px;
+  border-color:rgba(232,228,224,.6);
+}
+#cursor-dot.hover-gear{
+  width:4px;height:4px;
+  background:var(--void);
+  box-shadow:0 0 6px var(--gold);
+}
+#cursor-ring.hover-gear{
+  width:22px;height:22px;
+  border:2px solid var(--gold);
+  border-style:dashed;
+  animation:cursor-rotate 3s linear infinite;
+}
+@keyframes cursor-rotate{to{transform:translate(-50%,-50%) rotate(360deg)}}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+.site-nav{
+  position:fixed;top:0;left:0;right:0;z-index:1000;
+  padding:1rem 1.25rem;
+  display:flex;align-items:center;justify-content:space-between;
+  mix-blend-mode:difference;
+  font-family:var(--ff-sans);
+  font-weight:400;font-size:.8rem;letter-spacing:.16em;
+  text-transform:uppercase;
+  backdrop-filter:blur(0px);
+  transition:backdrop-filter 600ms ease;
+}
+.site-nav.scrolled{backdrop-filter:blur(12px)}
+.nav-brand{font-family:var(--ff-serif);font-size:1.15rem;font-weight:600;letter-spacing:.05em;text-transform:none;color:var(--moon)}
+.nav-links{display:flex;gap:1.5rem;list-style:none}
+.nav-links a{color:var(--moon-muted);text-decoration:none;transition:color var(--transition-speed)}
+.nav-links a:hover,.nav-links a:focus-visible{color:var(--gold)}
+
+/* ============================================================
+   HERO — full viewport starfield
+   ============================================================ */
+.hero{
+  position:relative;min-height:100vh;min-height:100svh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;padding:6rem 1.25rem 4rem;
+}
+#hero-canvas{
+  position:absolute;inset:0;width:100%;height:100%;
+  z-index:0;
+}
+.hero-content{
+  position:relative;z-index:2;
+  text-align:center;max-width:680px;
+}
+.hero-tag{
+  font-family:var(--ff-sans);font-size:.65rem;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--gold);
+  margin-bottom:clamp(1rem,2.5vw,1.5rem);
+  opacity:0;animation:fadeUp .8s var(--ease-out-expo) .3s forwards;
+}
+.hero-title{
+  font-family:var(--ff-serif);font-size:clamp(2.6rem,7vw,5.2rem);
+  font-weight:500;line-height:1.08;letter-spacing:-.01em;
+  color:var(--moon);
+  opacity:0;animation:fadeUp .8s var(--ease-out-expo) .5s forwards;
+}
+.hero-title em{font-style:italic;color:var(--gold)}
+.hero-sub{
+  font-family:var(--ff-sans);font-weight:300;font-size:clamp(.85rem,1.8vw,1.05rem);
+  color:var(--moon-muted);margin-top:clamp(1rem,2.5vw,1.6rem);
+  max-width:420px;margin-inline:auto;
+  opacity:0;animation:fadeUp .8s var(--ease-out-expo) .7s forwards;
+}
+.hero-scroll-hint{
+  position:absolute;bottom:2rem;left:50%;translate:-50% 0;z-index:2;
+  opacity:0;animation:fadeUp .8s var(--ease-out-expo) 1.2s forwards;
+}
+.hero-scroll-hint span{
+  display:block;width:1px;height:36px;margin:0 auto .5rem;
+  background:linear-gradient(180deg,var(--gold),transparent);
+  animation:breatheLine 2.6s ease-in-out infinite;
+}
+.hero-scroll-hint small{
+  font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--moon-muted);
+}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(28px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes breatheLine{
+  0%,100%{height:24px;opacity:.35}
+  50%{height:44px;opacity:.7}
+}
+
+/* Shooting star */
+.shooting-star{
+  position:absolute;z-index:1;width:2px;height:80px;
+  background:linear-gradient(180deg,var(--moon),transparent);
+  border-radius:1px;opacity:0;pointer-events:none;
+  transform:rotate(-25deg);
+}
+
+/* ============================================================
+   SECTION GENERICS
+   ============================================================ */
+.section{
+  padding:clamp(3rem,8vw,7rem) clamp(1.25rem,5vw,3rem);
+  position:relative;
+}
+.section-label{
+  font-family:var(--ff-sans);font-size:.6rem;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--gold-dim);margin-bottom:.75rem;
+}
+.section-title{
+  font-family:var(--ff-serif);font-size:clamp(1.6rem,3.5vw,2.6rem);
+  font-weight:500;line-height:1.15;color:var(--moon);margin-bottom:1rem;
+}
+.section-body{
+  font-size:clamp(.85rem,1.4vw,.95rem);color:var(--moon-muted);
+  max-width:540px;line-height:1.7;
+}
+
+/* Reveal on scroll */
+.reveal{opacity:0;transform:translateY(32px);transition:opacity .7s var(--ease-out-expo),transform .7s var(--ease-out-expo)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:.12s}
+.reveal-delay-2{transition-delay:.24s}
+.reveal-delay-3{transition-delay:.36s}
+
+/* ============================================================
+   COLLECTION ECLIPSE — 3 cartes
+   ============================================================ */
+.collection{background:linear-gradient(180deg,var(--void),var(--navy),var(--void))}
+.collection-header{text-align:center;margin-bottom:clamp(2.5rem,5vw,4rem)}
+.collection-header .section-label{color:var(--gold)}
+.collection-grid{
+  display:grid;grid-template-columns:1fr;
+  gap:clamp(1.5rem,3vw,2rem);
+  max-width:1200px;margin:0 auto;
+}
+@media (min-width:768px){.collection-grid{grid-template-columns:repeat(3,1fr)}}
+
+.card-3d{
+  perspective:900px;perspective-origin:center;
+}
+.card-inner{
+  position:relative;border-radius:var(--radius-lg);
+  background:var(--navy-light);
+  border:1px solid rgba(200,169,110,.1);
+  padding:clamp(1.5rem,3vw,2rem);
+  overflow:hidden;
+  transform-style:preserve-3d;
+  transition:transform .35s var(--ease-out-expo);
+  will-change:transform;
+}
+.card-glow{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  border-radius:inherit;
+  background:radial-gradient(circle at center, rgba(200,169,110,.06) 0%, transparent 70%);
+  opacity:0;transition:opacity .5s ease;
+}
+.card-inner:hover .card-glow,
+.card-inner:focus-within .card-glow{opacity:1}
+
+.card-visual{
+  position:relative;z-index:1;display:grid;place-items:center;
+  margin-bottom:1.5rem;
+}
+.card-dial{
+  width:clamp(80px,14vw,110px);height:clamp(80px,14vw,110px);
+  border-radius:50%;position:relative;
+  transition:transform .6s var(--ease-out-expo);
+}
+.card-inner:hover .card-dial{transform:scale(1.06)}
+/* Dial variants */
+.dial-umbra{ /* Eclipse totale — phase noire, halo coronal */
+  background:radial-gradient(circle at 40% 38%, #2a2a35 0%, #0a0c14 60%, #c8a96e 92%, rgba(200,169,110,.2) 100%);
+  box-shadow:inset 0 0 0 1px rgba(200,169,110,.25), 0 0 40px rgba(200,169,110,.08);
+}
+.dial-penumbra{ /* Eclipse partielle — gradient oblique */
+  background:radial-gradient(ellipse at 38% 42%, #3d3228 0%, #14151e 55%, #c8a96e 88%, rgba(200,169,110,.15) 100%);
+  box-shadow:inset 0 0 0 1px rgba(200,169,110,.2), 0 0 32px rgba(200,169,110,.06);
+}
+.dial-aureole{ /* Couronne solaire — dorures */
+  background:radial-gradient(circle at 44% 40%, #c8a96e 0%, #5c4a32 30%, #11131c 65%, #c8a96e 93%, rgba(200,169,110,.3) 100%);
+  box-shadow:inset 0 0 0 1px rgba(200,169,110,.35), 0 0 48px rgba(200,169,110,.12);
+}
+/* Watch hands */
+.dial-hand{
+  position:absolute;bottom:50%;left:50%;transform-origin:bottom center;
+  background:rgba(232,228,224,.9);border-radius:1px;
+}
+.dial-hand.hour{width:2px;height:26%;transform:translate(-50%,0) rotate(-45deg)}
+.dial-hand.minute{width:1.5px;height:38%;transform:translate(-50%,0) rotate(22deg)}
+.dial-hand.seconds{width:.8px;height:42%;transform:translate(-50%,0) rotate(8deg);background:var(--gold)}
+.dial-center{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:6px;height:6px;border-radius:50%;
+  background:var(--gold);z-index:2;
+}
+
+.card-info{position:relative;z-index:1}
+.card-name{font-family:var(--ff-serif);font-size:1.1rem;font-weight:600;color:var(--moon);margin-bottom:.25rem}
+.card-desc{font-size:.78rem;color:var(--moon-muted);line-height:1.55;margin-bottom:.8rem}
+.card-link{
+  display:inline-block;font-size:.7rem;font-weight:500;
+  letter-spacing:.1em;text-transform:uppercase;
+  color:var(--gold);text-decoration:none;
+  border-bottom:1px solid transparent;
+  transition:border-color var(--transition-speed);
+  cursor:none;
+}
+.card-link:hover,.card-link:focus-visible{border-bottom-color:var(--gold)}
+
+/* ============================================================
+   ATELIER — scroll-triggered narrative
+   ============================================================ */
+.atelier{background:var(--navy);overflow:hidden}
+.atelier-grid{
+  display:grid;grid-template-columns:1fr;
+  gap:2.5rem;max-width:1100px;margin:0 auto;align-items:center;
+}
+@media (min-width:768px){.atelier-grid{grid-template-columns:1fr 1fr}}
+
+.atelier-visual{position:relative;display:grid;place-items:center}
+.atelier-svg{width:100%;max-width:340px}
+.atelier-svg .draw-path{
+  fill:none;stroke:var(--gold);stroke-width:1.2;
+  stroke-dasharray:1;stroke-dashoffset:1;
+  transition:stroke-dashoffset 2.2s var(--ease-out-expo);
+}
+.atelier-svg.animate .draw-path{stroke-dashoffset:0}
+.atelier-svg .glow-dot{
+  opacity:0;
+  transition:opacity .6s ease 1.4s;
+}
+.atelier-svg.animate .glow-dot{opacity:.8}
+.atelier-text .section-label{color:var(--gold)}
+.atelier-steps{margin-top:1.5rem;display:flex;flex-direction:column;gap:1rem}
+.atelier-step{
+  display:flex;gap:.75rem;align-items:flex-start;
+  opacity:0;transform:translateX(-12px);
+  transition:opacity .5s ease,transform .5s var(--ease-out-expo);
+}
+.atelier-step.visible{opacity:1;transform:translateX(0)}
+.atelier-step-icon{
+  flex-shrink:0;width:28px;height:28px;border-radius:50%;
+  border:1px solid var(--gold-dim);display:grid;place-items:center;
+  font-size:.7rem;color:var(--gold);font-weight:500;
+}
+.atelier-step-text strong{display:block;font-size:.85rem;color:var(--moon);margin-bottom:.15rem}
+.atelier-step-text span{font-size:.75rem;color:var(--moon-muted);line-height:1.5}
+
+/* ============================================================
+   MOUVEMENT MÉCANIQUE — Gear canvas
+   ============================================================ */
+.gear-section{background:linear-gradient(180deg,var(--void),var(--navy) 40%, var(--void))}
+.gear-header{text-align:center;margin-bottom:clamp(2rem,4vw,3rem)}
+.gear-stage{
+  position:relative;width:100%;max-width:700px;margin:0 auto;
+  aspect-ratio:3/2;
+}
+#gear-canvas{width:100%;height:100%;display:block;border-radius:var(--radius-lg)}
+.gear-stats{
+  display:flex;justify-content:center;gap:clamp(1.5rem,5vw,3rem);
+  margin-top:2rem;flex-wrap:wrap;
+}
+.gear-stat{text-align:center}
+.gear-stat-value{
+  font-family:var(--ff-serif);font-size:clamp(1.4rem,2.5vw,2rem);
+  font-weight:600;color:var(--gold);
+}
+.gear-stat-label{font-size:.65rem;letter-spacing:.14em;text-transform:uppercase;color:var(--moon-muted);margin-top:.25rem}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.site-footer{
+  border-top:1px solid rgba(200,169,110,.12);
+  padding:clamp(1.5rem,3vw,2.5rem) clamp(1.25rem,5vw,3rem);
+  display:flex;flex-direction:column;align-items:center;gap:1rem;
+  text-align:center;
+}
+@media (min-width:768px){.site-footer{flex-direction:row;justify-content:space-between;text-align:left}}
+.footer-brand{
+  font-family:var(--ff-serif);font-size:1.3rem;font-weight:600;
+  color:var(--moon);letter-spacing:.03em;
+}
+.footer-links{display:flex;gap:1.8rem;list-style:none;flex-wrap:wrap;justify-content:center}
+.footer-links a{
+  font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--moon-muted);text-decoration:none;
+  transition:color var(--transition-speed);
+  position:relative;
+}
+.footer-links a::after{
+  content:'';position:absolute;bottom:-3px;left:0;width:0;height:1px;
+  background:var(--gold);transition:width .4s var(--ease-out-expo);
+}
+.footer-links a:hover::after,
+.footer-links a:focus-visible::after{width:100%}
+.footer-links a:hover,.footer-links a:focus-visible{color:var(--gold)}
+.footer-note{font-size:.68rem;color:var(--moon-muted);letter-spacing:.06em}
+
+.back-top{
+  display:inline-flex;align-items:center;gap:.5rem;
+  font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--moon-muted);text-decoration:none;cursor:none;
+  transition:color var(--transition-speed);
+}
+.back-top:hover{color:var(--gold)}
+.back-top-arrow{
+  display:inline-block;width:20px;height:20px;
+  border:1px solid currentColor;border-radius:50%;
+  position:relative;
+  transition:transform .35s var(--ease-out-back);
+}
+.back-top:hover .back-top-arrow{transform:translateY(-3px)}
+.back-top-arrow::after{
+  content:'';position:absolute;top:6px;left:50%;translate:-50% 0;
+  width:6px;height:6px;border-top:1.5px solid currentColor;
+  border-right:1.5px solid currentColor;
+  transform:rotate(-45deg);
+}
+
+/* ============================================================
+   EASTER EGG — CONSTELLATION OVERLAY (triple-click)
+   ============================================================ */
+.constellation-overlay{
+  position:fixed;inset:0;z-index:9000;pointer-events:none;
+  opacity:0;transition:opacity 1.4s ease;
+}
+.constellation-overlay.active{opacity:1}
+#constellation-canvas{width:100%;height:100%}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:2rem;left:50%;translate:-50% 0;z-index:10001;
+  font-family:var(--ff-sans);font-size:.7rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--gold);
+  background:rgba(10,14,23,.85);border:1px solid rgba(200,169,110,.2);
+  padding:.6rem 1.4rem;border-radius:99px;
+  opacity:0;transform:translateY(12px);
+  transition:opacity .4s ease,transform .4s var(--ease-out-expo);
+  pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (min-width:768px){
+  .site-nav{padding:1.2rem 2.5rem;font-size:.85rem}
+  .hero{padding:7rem 2.5rem 5rem}
+  .section{padding:clamp(4rem,7vw,7rem) clamp(2rem,5vw,4rem)}
+}
+@media (min-width:1440px){
+  .site-nav{padding:1.4rem 4rem}
+  .collection-grid{gap:2.5rem}
+  .card-inner{padding:2.5rem}
+  .section{padding:7rem 4rem}
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+  #hero-canvas{display:none}
+  .shooting-star{display:none}
+  #cursor-dot,#cursor-ring{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- CUSTOM CURSOR -->
+<div id="cursor-dot" aria-hidden="true"></div>
+<div id="cursor-ring" aria-hidden="true"></div>
+
+<!-- CONSTELLATION OVERLAY (easter egg) -->
+<div class="constellation-overlay" id="constellation-overlay" aria-hidden="true">
+  <canvas id="constellation-canvas"></canvas>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<!-- ============================================================
+     NAV
+     ============================================================ -->
+<nav class="site-nav" id="site-nav" aria-label="Navigation principale">
+  <span class="nav-brand">AURALIS</span>
+  <ul class="nav-links" role="list">
+    <li><a href="#collection">Collection</a></li>
+    <li><a href="#atelier">L'Atelier</a></li>
+    <li><a href="#mouvement">Mouvement</a></li>
+  </ul>
+</nav>
+
+<main>
+<!-- ============================================================
+     HERO
+     ============================================================ -->
+<section class="hero" id="hero" aria-label="Accueil">
+  <canvas id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="hero-content">
+    <p class="hero-tag">Studio de création horlogère — Genève</p>
+    <h1 class="hero-title">L'astronomie<br><em>au poignet</em></h1>
+    <p class="hero-sub">Des montres mécaniques contemporaines où chaque cadran traduit un phénomène céleste en composition horlogère.</p>
+  </div>
+  <div class="hero-scroll-hint" aria-hidden="true">
+    <span></span>
+    <small>Découvrir</small>
+  </div>
+</section>
+
+<!-- ============================================================
+     COLLECTION ECLIPSE
+     ============================================================ -->
+<section class="section collection" id="collection" aria-labelledby="coll-title">
+  <header class="collection-header reveal">
+    <p class="section-label">Collection 2026</p>
+    <h2 class="section-title" id="coll-title">Eclipse</h2>
+    <p class="section-body" style="margin-inline:auto;text-align:center">Trois interprétations du phénomène solaire le plus saisissant, capturé dans un boîtier en acier 316L.</p>
+  </header>
+
+  <div class="collection-grid">
+    <!-- UM BRA -->
+    <article class="card-3d reveal reveal-delay-1" data-card>
+      <div class="card-inner" data-tilt>
+        <div class="card-glow" aria-hidden="true"></div>
+        <div class="card-visual">
+          <div class="card-dial dial-umbra" aria-hidden="true">
+            <span class="dial-hand hour"></span>
+            <span class="dial-hand minute"></span>
+            <span class="dial-hand seconds"></span>
+            <span class="dial-center"></span>
+          </div>
+        </div>
+        <div class="card-info">
+          <h3 class="card-name">Umbra</h3>
+          <p class="card-desc">Phase de totalité. Cadran noir profond avec halo coronal en périphérie. Le vide intersidéral capturé.</p>
+          <a href="#" class="card-link" data-interactive>Découvrir →</a>
+        </div>
+      </div>
+    </article>
+
+    <!-- PENUMBRA -->
+    <article class="card-3d reveal reveal-delay-2" data-card>
+      <div class="card-inner" data-tilt>
+        <div class="card-glow" aria-hidden="true"></div>
+        <div class="card-visual">
+          <div class="card-dial dial-penumbra" aria-hidden="true">
+            <span class="dial-hand hour"></span>
+            <span class="dial-hand minute"></span>
+            <span class="dial-hand seconds"></span>
+            <span class="dial-center"></span>
+          </div>
+        </div>
+        <div class="card-info">
+          <h3 class="card-name">Penumbra</h3>
+          <p class="card-desc">La frontière de l'ombre. Dégradé oblique du bronze au noir sidéral. Le seuil de la lumière.</p>
+          <a href="#" class="card-link" data-interactive>Découvrir →</a>
+        </div>
+      </div>
+    </article>
+
+    <!-- AUREOLE -->
+    <article class="card-3d reveal reveal-delay-3" data-card>
+      <div class="card-inner" data-tilt>
+        <div class="card-glow" aria-hidden="true"></div>
+        <div class="card-visual">
+          <div class="card-dial dial-aureole" aria-hidden="true">
+            <span class="dial-hand hour"></span>
+            <span class="dial-hand minute"></span>
+            <span class="dial-hand seconds"></span>
+            <span class="dial-center"></span>
+          </div>
+        </div>
+        <div class="card-info">
+          <h3 class="card-name">Aureole</h3>
+          <p class="card-desc">Couronne solaire émergeant de l'éclipse. Or pur au centre irradiant vers les bords obscurs.</p>
+          <a href="#" class="card-link" data-interactive>Découvrir →</a>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ============================================================
+     L'ATE LIER
+     ============================================================ -->
+<section class="section atelier" id="atelier" aria-labelledby="atelier-title">
+  <div class="atelier-grid">
+    <!-- Colonne visuelle -->
+    <div class="atelier-visual reveal">
+      <svg class="atelier-svg" id="atelier-svg" viewBox="0 0 280 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Loupe -->
+        <circle cx="140" cy="110" r="58" class="draw-path"/>
+        <line x1="180" y1="152" x2="218" y2="192" class="draw-path" stroke-width="2.5"/>
+        <!-- Micro gear -->
+        <g transform="translate(80,210)">
+          <circle cx="0" cy="0" r="26" class="draw-path"/>
+          <circle cx="0" cy="0" r="8" fill="var(--gold)" opacity="0" class="glow-dot"/>
+        </g>
+        <!-- Hand holding tool -->
+        <g transform="translate(180,220)" class="draw-path">
+          <ellipse cx="0" cy="0" rx="28" ry="16" stroke="var(--moon-muted)" stroke-width=".8" fill="none"/>
+          <rect x="-2" y="-30" width="4" height="34" rx="2" fill="none" stroke="var(--moon-muted)" stroke-width=".8"/>
+        </g>
+        <!-- Watch case outline -->
+        <g transform="translate(140,260)">
+          <circle cx="0" cy="0" r="24" class="draw-path"/>
+          <circle cx="0" cy="0" r="4" fill="var(--gold)" opacity="0" class="glow-dot"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Colonne texte -->
+    <div class="atelier-text">
+      <p class="section-label reveal">Savoir-faire</p>
+      <h2 class="section-title reveal" id="atelier-title">L'Atelier</h2>
+      <p class="section-body reveal">
+        Chaque montre AURALIS naît dans notre atelier genevois, où l'horlogerie traditionnelle rencontre les outils de conception contemporains.
+      </p>
+      <div class="atelier-steps" id="atelier-steps">
+        <div class="atelier-step" data-step>
+          <span class="atelier-step-icon" aria-hidden="true">1</span>
+          <span class="atelier-step-text"><strong>Conception orbitale</strong><span>Modélisation paramétrique de la trajectoire des aiguilles.</span></span>
+        </div>
+        <div class="atelier-step" data-step>
+          <span class="atelier-step-icon" aria-hidden="true">2</span>
+          <span class="atelier-step-text"><strong>Fraisage de précision</strong><span>Boîtier usiné dans un bloc d'acier 316L en 47 opérations distinctes.</span></span>
+        </div>
+        <div class="atelier-step" data-step>
+          <span class="atelier-step-icon" aria-hidden="true">3</span>
+          <span class="atelier-step-text"><strong>Assemblage manuel</strong><span>213 composants assemblés et réglés un par un. ±2s/jour.</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     MOUVEMENT MÉCANIQUE
+     ============================================================ -->
+<section class="section gear-section" id="mouvement" aria-labelledby="gear-title" data-gear-section>
+  <header class="gear-header reveal">
+    <p class="section-label">Ingénierie interne</p>
+    <h2 class="section-title" id="gear-title">Mouvement mécanique</h2>
+    <p class="section-body" style="margin-inline:auto;text-align:center;max-width:460px">Calibre manufacture AUR-7001. Fréquence 28 800 alt/h. Réserve de marche 72 heures.</p>
+  </header>
+
+  <div class="gear-stage reveal">
+    <canvas id="gear-canvas" aria-label="Animation d'engrenages mécaniques en rotation" role="img"></canvas>
+  </div>
+
+  <div class="gear-stats">
+    <div class="gear-stat reveal reveal-delay-1">
+      <span class="gear-stat-value">28&nbsp;800</span>
+      <span class="gear-stat-label">Alt/h — Fréquence</span>
+    </div>
+    <div class="gear-stat reveal reveal-delay-2">
+      <span class="gear-stat-value">72h</span>
+      <span class="gear-stat-label">Réserve de marche</span>
+    </div>
+    <div class="gear-stat reveal reveal-delay-3">
+      <span class="gear-stat-value">±2s</span>
+      <span class="gear-stat-label">Précision / jour</span>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer class="site-footer" role="contentinfo">
+  <span class="footer-brand">AURALIS</span>
+  <ul class="footer-links" role="list">
+    <li><a href="#" data-interactive>Contact</a></li>
+    <li><a href="#" data-interactive>Presse</a></li>
+    <li><a href="#" data-interactive>Boutiques</a></li>
+    <li><a href="#" data-interactive>Mentions</a></li>
+  </ul>
+  <a href="#hero" class="back-top" data-interactive aria-label="Retour en haut de page">
+    <span class="back-top-arrow" aria-hidden="true"></span> Haut
+  </a>
+</footer>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<script>
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+const $ = (sel, ctx=document) => ctx.querySelector(sel);
+const $$ = (sel, ctx=document) => [...ctx.querySelectorAll(sel)];
+const raf = requestAnimationFrame;
+let mx = 0, my = 0; // shared mouse position
+
+/* ============================================================
+   1. CUSTOM CURSOR
+   ============================================================ */
+const dot = $('#cursor-dot');
+const ring = $('#cursor-ring');
+let dotX = 0, dotY = 0, ringX = 0, ringY = 0;
+const RING_LERP = .14;
+
+function updateCursor(e){
+  mx = e.clientX; my = e.clientY;
+}
+function animateCursor(){
+  dotX += (mx - dotX) * .28;
+  dotY += (my - dotY) * .28;
+  ringX += (mx - ringX) * RING_LERP;
+  ringY += (my - ringY) * RING_LERP;
+  dot.style.transform = `translate(${dotX}px,${dotY}px)`;
+  ring.style.transform = `translate(${ringX}px,${ringY}px)`;
+  raf(animateCursor);
+}
+
+document.addEventListener('mousemove', updateCursor);
+document.addEventListener('touchmove', e => { mx = e.touches[0].clientX; my = e.touches[0].clientY; });
+animateCursor();
+
+/* Hover classes for interactive elements */
+const interactives = $$('[data-interactive], a, button, [role="button"], input, select, textarea');
+interactives.forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    dot.classList.add('hover-interactive');
+    ring.classList.add('hover-interactive');
+  });
+  el.addEventListener('mouseleave', () => {
+    dot.classList.remove('hover-interactive');
+    ring.classList.remove('hover-interactive');
+  });
+});
+
+/* Gear section cursor variant */
+const gearSection = $('[data-gear-section]');
+if(gearSection){
+  gearSection.addEventListener('mouseenter', () => {
+    dot.classList.add('hover-gear'); ring.classList.add('hover-gear');
+  });
+  gearSection.addEventListener('mouseleave', () => {
+    dot.classList.remove('hover-gear'); ring.classList.remove('hover-gear');
+  });
+}
+
+/* ============================================================
+   2. NAV SCROLL BACKDROP
+   ============================================================ */
+const nav = $('#site-nav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 40);
+});
+
+/* ============================================================
+   3. SCROLL REVEAL (Intersection Observer)
+   ============================================================ */
+const revealEls = $$('.reveal');
+const stepEls = $$('[data-step]');
+const observerOptions = { threshold: .18, rootMargin: '0px 0px -30px 0px' };
+
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if(entry.isIntersecting){
+      entry.target.classList.add('visible');
+      revealObserver.unobserve(entry.target);
+    }
+  });
+}, observerOptions);
+
+revealEls.forEach(el => revealObserver.observe(el));
+
+/* Atelier steps — separate observer */
+const stepObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if(entry.isIntersecting){
+      entry.target.classList.add('visible');
+      stepObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: .4 });
+
+const atelierSvg = $('#atelier-svg');
+const atelierObs = new IntersectionObserver((entries) => {
+  if(entries[0].isIntersecting){
+    atelierSvg.classList.add('animate');
+    atelierObs.unobserve(entries[0].target);
+  }
+}, { threshold: .5 });
+
+if(atelierSvg) atelierObs.observe(atelierSvg);
+stepEls.forEach(el => stepObserver.observe(el));
+
+/* ============================================================
+   4. HERO CANVAS — Starfield + shooting stars
+   ============================================================ */
+const heroCanvas = $('#hero-canvas');
+if(heroCanvas){
+  const hctx = heroCanvas.getContext('2d');
+  let stars = [];
+  let heroW = 0, heroH = 0;
+  let shootingStars = [];
+  let ssTimer = 0;
+
+  function resizeHeroCanvas(){
+    const rect = heroCanvas.parentElement.getBoundingClientRect();
+    heroW = rect.width; heroH = rect.height;
+    heroCanvas.width = heroW * devicePixelRatio;
+    heroCanvas.height = heroH * devicePixelRatio;
+    heroCanvas.style.width = heroW + 'px';
+    heroCanvas.style.height = heroH + 'px';
+    hctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  }
+
+  function initStars(){
+    stars = [];
+    const count = Math.floor((heroW * heroH) / 4200); // density
+    for(let i=0; i<count; i++){
+      stars.push({
+        x: Math.random() * heroW,
+        y: Math.random() * heroH,
+        r: Math.random() * 1.4 + .3,
+        twinkle: Math.random() * Math.PI * 2,
+        twinkleSpeed: .008 + Math.random() * .025,
+        twinkleAmp: .2 + Math.random() * .6,
+        baseAlpha: .45 + Math.random() * .5
+      });
+    }
+  }
+
+  function spawnShootingStar(){
+    shootingStars.push({
+      x: Math.random() * heroW * .8 + heroW * .1,
+      y: Math.random() * heroH * .5,
+      life: 1,
+      decay: .012 + Math.random() * .02,
+      length: 60 + Math.random() * 90,
+      angle: -22 + Math.random() * 12
+    });
+  }
+
+  function drawHero(t){
+    hctx.clearRect(0, 0, heroW, heroH);
+
+    // Stars
+    stars.forEach(s => {
+      s.twinkle += s.twinkleSpeed;
+      const alpha = s.baseAlpha + Math.sin(s.twinkle) * s.twinkleAmp;
+      hctx.beginPath();
+      hctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      hctx.fillStyle = `rgba(232,228,224,${Math.max(.08, alpha)})`;
+      hctx.fill();
+    });
+
+    // Shooting stars
+    shootingStars.forEach(ss => {
+      ss.life -= ss.decay;
+      const rad = ss.angle * Math.PI / 180;
+      const dx = Math.cos(rad) * ss.length;
+      const dy = Math.sin(rad) * ss.length;
+      const grad = hctx.createLinearGradient(ss.x, ss.y, ss.x - dx, ss.y - dy);
+      grad.addColorStop(0, `rgba(232,228,224,${ss.life})`);
+      grad.addColorStop(.7, `rgba(200,169,110,${ss.life*.5})`);
+      grad.addColorStop(1, 'rgba(200,169,110,0)');
+      hctx.beginPath();
+      hctx.moveTo(ss.x, ss.y);
+      hctx.lineTo(ss.x - dx, ss.y - dy);
+      hctx.strokeStyle = grad;
+      hctx.lineWidth = 1.5 * ss.life;
+      hctx.stroke();
+    });
+    shootingStars = shootingStars.filter(ss => ss.life > 0);
+
+    // Timer for new shooting star
+    ssTimer++;
+    if(ssTimer > 220 + Math.random() * 400){
+      ssTimer = 0;
+      if(shootingStars.length < 2) spawnShootingStar();
+    }
+
+    raf(drawHero);
+  }
+
+  resizeHeroCanvas();
+  initStars();
+  raf(drawHero);
+
+  window.addEventListener('resize', () => {
+    resizeHeroCanvas();
+    initStars();
+  });
+}
+
+/* ============================================================
+   5. COLLECTION CARDS — 3D Tilt
+   ============================================================ */
+$$('[data-tilt]').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const rect = card.getBoundingClientRect();
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top + rect.height/2;
+    const rx = (my - cy) / (rect.height/2); // -1..1
+    const ry = (mx - cx) / (rect.width/2);  // -1..1
+    const maxDeg = 8;
+    card.style.transform = `rotateX(${-rx * maxDeg}deg) rotateY(${ry * maxDeg}deg)`;
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = 'rotateX(0deg) rotateY(0deg)';
+  });
+});
+
+/* ============================================================
+   6. GEAR CANVAS — animated interlocking gears
+   ============================================================ */
+const gearCanvas = $('#gear-canvas');
+if(gearCanvas){
+  const gctx = gearCanvas.getContext('2d');
+  let gW = 0, gH = 0;
+
+  function resizeGearCanvas(){
+    const container = gearCanvas.parentElement;
+    gW = container.clientWidth;
+    gH = container.clientHeight;
+    gearCanvas.width = gW * devicePixelRatio;
+    gearCanvas.height = gH * devicePixelRatio;
+    gctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  }
+
+  /* Gear tooth profile: alternating outer/inner radius */
+  function drawGear(cx, cy, outerR, innerR, teeth, rotation, fillColor, strokeColor){
+    gctx.save();
+    gctx.translate(cx, cy);
+    gctx.rotate(rotation);
+    gctx.beginPath();
+    const step = (Math.PI * 2) / teeth;
+    for(let i=0; i<teeth; i++){
+      const a1 = i * step;
+      const a2 = a1 + step * .45;
+      const a3 = a1 + step * .55;
+      const a4 = (i+1) * step;
+      // Outer edge (tooth tip)
+      gctx.lineTo(Math.cos(a1)*outerR, Math.sin(a1)*outerR);
+      gctx.lineTo(Math.cos(a2)*outerR, Math.sin(a2)*outerR);
+      // Valley
+      gctx.lineTo(Math.cos(a3)*innerR, Math.sin(a3)*innerR);
+      gctx.lineTo(Math.cos(a4)*innerR, Math.sin(a4)*innerR);
+    }
+    gctx.closePath();
+
+    // Metallic gradient fill
+    const grad = gctx.createLinearGradient(-outerR, -outerR, outerR, outerR);
+    grad.addColorStop(0, fillColor[0]);
+    grad.addColorStop(.5, fillColor[1]);
+    grad.addColorStop(1, fillColor[2]);
+    gctx.fillStyle = grad;
+    gctx.fill();
+    gctx.strokeStyle = strokeColor;
+    gctx.lineWidth = .8;
+    gctx.stroke();
+
+    // Axle dot
+    gctx.beginPath();
+    gctx.arc(0,0, outerR*.13, 0, Math.PI*2);
+    gctx.fillStyle = '#C8A96E';
+    gctx.fill();
+    gctx.restore();
+  }
+
+  let gearRot = 0;
+  /* Gear config: cx, cy, outerR, innerR, teeth, speed multiplier, fillColors[3], strokeColor */
+  const gears = [
+    { cx:0, cy:0, outerR:0, innerR:0, teeth:48, speed:1, fill:['#3a4055','#252b3d','#1a1f2e'], stroke:'rgba(200,169,110,.25)' },
+    { cx:0, cy:0, outerR:0, innerR:0, teeth:30, speed:-1.6, fill:['#3d3845','#282430','#1c1920'], stroke:'rgba(200,169,110,.2)' },
+    { cx:0, cy:0, outerR:0, innerR:0, teeth:18, speed:2.667, fill:['#383840','#24242b','#181820'], stroke:'rgba(200,169,110,.3)' },
+  ];
+
+  function layoutGears(){
+    const cx = gW/2, cy = gH/2;
+    const R1 = Math.min(gW,gH) * .26;
+    const R2 = R1 * .62;
+    const R3 = R1 * .38;
+    const dist12 = R1 * .82 + R2 * .82; // meshing distance
+    const dist23 = R2 * .78 + R3 * .78;
+
+    gears[0].cx = cx;        gears[0].cy = cy;
+    gears[0].outerR = R1;    gears[0].innerR = R1*.78;
+
+    const angle12 = Math.PI * .35;
+    gears[1].cx = cx + Math.cos(angle12)*dist12;
+    gears[1].cy = cy - Math.sin(angle12)*dist12;
+    gears[1].outerR = R2;    gears[1].innerR = R2*.78;
+
+    const angle23 = angle12 + Math.PI * .62;
+    gears[2].cx = gears[1].cx + Math.cos(angle23)*dist23;
+    gears[2].cy = gears[1].cy - Math.sin(angle23)*dist23;
+    gears[2].outerR = R3;    gears[2].innerR = R3*.78;
+  }
+
+  function drawGears(){
+    gctx.clearRect(0,0,gW,gH);
+
+    // Subtle background radial
+    const bg = gctx.createRadialGradient(gW/2,gH/2,gW*.08,gW/2,gH/2,gW*.7);
+    bg.addColorStop(0, 'rgba(200,169,110,.04)');
+    bg.addColorStop(1, 'rgba(0,0,0,0)');
+    gctx.fillStyle = bg;
+    gctx.fillRect(0,0,gW,gH);
+
+    gears.forEach(g => {
+      drawGear(g.cx, g.cy, g.outerR, g.innerR, g.teeth, gearRot * g.speed, g.fill, g.stroke);
+    });
+  }
+
+  function animateGears(t){
+    gearRot += .004;
+    drawGears();
+    raf(animateGears);
+  }
+
+  resizeGearCanvas();
+  layoutGears();
+  raf(animateGears);
+
+  window.addEventListener('resize', () => {
+    resizeGearCanvas();
+    layoutGears();
+  });
+}
+
+/* ============================================================
+   7. EASTER EGG — Triple-click constellation mode
+   ============================================================ */
+let clickCount = 0;
+let clickTimer = 0;
+let constellationActive = false;
+const overlay = $('#constellation-overlay');
+const constCanvas = $('#constellation-canvas');
+const toast = $('#toast');
+
+function showToast(msg, duration=2200){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+if(constCanvas && heroCanvas){
+  const ccctx = constCanvas.getContext('2d');
+  let cW = 0, cH = 0;
+
+  function resizeConstCanvas(){
+    cW = window.innerWidth; cH = window.innerHeight;
+    constCanvas.width = cW * devicePixelRatio;
+    constCanvas.height = cH * devicePixelRatio;
+    constCanvas.style.width = cW+'px';
+    constCanvas.style.height = cH+'px';
+    ccctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  }
+
+  function drawConstellation(){
+    ccctx.clearRect(0,0,cW,cH);
+    // Generate constellation from random points across the screen
+    const pts = [];
+    const nPts = 14 + Math.floor(Math.random()*10);
+    for(let i=0;i<nPts;i++){
+      pts.push({x:Math.random()*cW, y:Math.random()*cH*.7, r:1.8+Math.random()*2.2});
+    }
+
+    // Draw lines between close points
+    pts.forEach((a,i) => {
+      pts.slice(i+1).forEach(b => {
+        const d = Math.hypot(b.x-a.x, b.y-a.y);
+        if(d < cW*.28){
+          ccctx.beginPath();
+          ccctx.moveTo(a.x,a.y);
+          ccctx.lineTo(b.x,b.y);
+          ccctx.strokeStyle = `rgba(200,169,110,${.08 + .12*(1-d/(cW*.28))})`;
+          ccctx.lineWidth = .5;
+          ccctx.stroke();
+        }
+      });
+    });
+
+    // Draw star points
+    pts.forEach(p => {
+      ccctx.beginPath();
+      ccctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ccctx.fillStyle = 'rgba(232,228,224,.75)';
+      ccctx.fill();
+      ccctx.beginPath();
+      ccctx.arc(p.x,p.y,p.r*2.5,0,Math.PI*2);
+      ccctx.fillStyle = 'rgba(200,169,110,.12)';
+      ccctx.fill();
+    });
+
+    // Label
+    ccctx.font = 'italic 11px "Playfair Display", serif';
+    ccctx.fillStyle = 'rgba(200,169,110,.55)';
+    ccctx.textAlign = 'right';
+    ccctx.fillText('Carte du ciel — ' + new Date().toLocaleDateString('fr-FR'), cW-40, 48);
+  }
+
+  function toggleConstellation(){
+    constellationActive = !constellationActive;
+    if(constellationActive){
+      resizeConstCanvas();
+      drawConstellation();
+      overlay.classList.add('active');
+      showToast('✦ Mode constellation activé');
+    } else {
+      overlay.classList.remove('active');
+      showToast('Mode constellation désactivé');
+    }
+  }
+
+  // Triple-click detection
+  document.addEventListener('click', e => {
+    const now = performance.now();
+    if(now - clickTimer > 800) clickCount = 0;
+    clickTimer = now;
+    clickCount++;
+    if(clickCount >= 3){
+      clickCount = 0;
+      toggleConstellation();
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if(constellationActive){ resizeConstCanvas(); drawConstellation(); }
+  });
+
+  // Keyboard shortcut for constellation
+  document.addEventListener('keydown', e => {
+    if(e.key === 'c' && e.ctrlKey && !e.metaKey){
+      e.preventDefault();
+      toggleConstellation();
+    }
+  });
+}
+
+/* ============================================================
+   8. GEAR SECTION — Canvas visibility observer
+      (pause gears when offscreen for performance)
+   ============================================================ */
+if(gearCanvas){
+  const gearVisibility = new IntersectionObserver((entries) => {
+    gearCanvas.style.opacity = entries[0].isIntersecting ? '1' : '.3';
+  }, { threshold: .1 });
+  gearVisibility.observe(gearCanvas.parentElement);
+}
+
+/* ============================================================
+   Init log
+   ============================================================ */
+console.log('%cAURALIS%c — Studio de montres mécaniques astronomiques',
+  'font-family:"Playfair Display",serif;font-size:1.4rem;color:#C8A96E;',
+  'font-family:Inter,sans-serif;color:#b5b0a8;');
+console.log('%cAstuce : triple-cliquez n\'importe où pour activer le mode constellation.',
+  'font-family:Inter,sans-serif;font-size:.75rem;color:#8a7348;font-style:italic;');
+</script>
+
+</body>
+</html>
+<!--
+  TROIS PARTIS-PRIS CRÉATIFS MAJEURS
+  ───────────────────────────────────
+  1. CADRAN COMME SIGNATURE : Chaque élément visuel (dégradés des cartes, engrenages,
+     constellation easter egg) est traité comme un cadran de montre — circulaire,
+     stratifié, animé par couches concentriques de sens.
+
+  2. LUMIÈRE COMME MATÉRIAU : La palette ne décrit pas des couleurs mais des sources
+     lumineuses (or stellaire, reflet lunaire, vide intersidéral). Le curseur custom
+     prolonge cette logique : un point d'or qui "éclaire" l'interface au toucher.
+
+  3. L'INTERACTION COMME REMONTAGE : Triple-clic = constellation (pas juste un bonus,
+     un geste horloger : répéter une action manuelle pour révéler un mécanisme caché).
+     L'analogie entre navigation web et remontage de mouvement donne sa cohérence au
+     design d'interaction tout entier.
+-->

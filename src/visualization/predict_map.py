@@ -197,6 +197,45 @@ def main():
     pred_pm10 = m_pm10["model"].predict(X_pm10)
     streets["pm10_pred"] = pred_pm10
 
+    # ── Derivación de score y campos esperados por el frontend ──
+    def pm25_to_score(v):
+        """Convierte PM2.5 a grado A–F según umbrales del PRD."""
+        if pd.isna(v):  return None
+        if v < 5:      return "A"
+        elif v < 10:  return "B"
+        elif v < 15:  return "C"
+        elif v < 20:  return "D"
+        elif v < 25:  return "E"
+        else:          return "F"
+
+    # Score anual basado en PM2.5
+    streets["score"] = streets["pm25_pred"].apply(pm25_to_score)
+
+    # Renombrar predicciones a nombres esperados por FeatureProps
+    streets["pm25_annual"] = streets["pm25_pred"]
+    streets["pm10_annual"] = streets["pm10_pred"]
+
+    # road_type según categorías del PRD: primary / secondary / residential / other
+    def highway_to_road_type(hw):
+        if pd.isna(hw):
+            return "other"
+        h = str(hw).lower().strip()
+        if h in ("motorway", "trunk", "primary", "primary_link"):
+            return "primary"
+        if h in ("secondary", "secondary_link", "tertiary", "tertiary_link"):
+            return "secondary"
+        if h in ("residential", "living_street", "unclassified", "service"):
+            return "residential"
+        return "other"
+
+    streets["road_type"] = streets["highway"].apply(highway_to_road_type)
+
+    # name: OSM ya tiene el campo 'name'; si no existe, lo creamos como null
+    if "name" not in streets.columns:
+        streets["name"] = None
+
+    log.info("Score A–F derivado de PM2.5: %s", dict(streets["score"].value_counts().sort_index()))
+
     # E2 — Intervalos de predicción bootstrap (90%)
     try:
         from sklearn.linear_model import RidgeCV as _RidgeCV

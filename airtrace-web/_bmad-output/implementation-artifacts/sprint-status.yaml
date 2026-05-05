@@ -1,5 +1,5 @@
 # generated: 2026-04-20
-# last_updated: 2026-04-20
+# last_updated: 2026-05-05
 # project: airtrace-web
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # Bloqueante crítico: AR-10 — ejecutar pipeline antes de iniciar Epic 3 y Epic 6
 
 generated: 2026-04-20
-last_updated: 2026-04-20
+last_updated: 2026-05-05
 project: airtrace-web
 project_key: NOKEY
 tracking_system: file-system
@@ -54,11 +54,11 @@ development_status:
   # EPIC 1: Scaffold Desplegable
   # Dependencias: ninguna — puede iniciarse hoy
   # ─────────────────────────────────────────────────────────────
-  epic-1: in-progress
-  1-1-bootstrap-del-proyecto-y-ci-cd: review
-  1-2-estructura-de-carpetas-y-tipos-globales: backlog
-  1-3-layout-d1-dark-y-shell-responsive: backlog
-  1-4-loading-overlay-y-spinner-global: backlog
+  epic-1: done
+  1-1-bootstrap-del-proyecto-y-ci-cd: done
+  1-2-estructura-de-carpetas-y-tipos-globales: done
+  1-3-layout-d1-dark-y-shell-responsive: done
+  1-4-loading-overlay-y-spinner-global: done
   epic-1-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────
@@ -66,11 +66,11 @@ development_status:
   # Dependencias: Epic 1
   # Datos disponibles: liverpool_pollution_map.geojson ✅
   # ─────────────────────────────────────────────────────────────
-  epic-2: backlog
-  2-1-mapa-mapbox-con-tramos-de-calle-anuales: backlog
-  2-2-escala-de-color-a-f-en-tramos-de-calle: backlog
-  2-3-leyenda-a-f-flotante-sobre-el-mapa: backlog
-  2-4-infocard-de-tramo-de-calle: backlog
+  epic-2: in-progress
+  2-1-mapa-mapbox-con-tramos-de-calle-anuales: done
+  2-2-escala-de-color-a-f-en-tramos-de-calle: done
+  2-3-leyenda-a-f-flotante-sobre-el-mapa: done
+  2-4-infocard-de-tramo-de-calle: in-progress
   epic-2-retrospective: optional
 
   # ─────────────────────────────────────────────────────────────

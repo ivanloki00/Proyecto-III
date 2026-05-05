@@ -1,6 +1,5 @@
 interface SidePanelProps {
   isOpen: boolean
-  onToggle: () => void
 }
 
 export default function SidePanel({ isOpen }: SidePanelProps) {
@@ -14,7 +13,7 @@ export default function SidePanel({ isOpen }: SidePanelProps) {
       aria-label="Panel de análisis"
     >
       <div className="p-4">
-        <p className="text-[#8b92a9] text-sm">Panel lateral — Story 4.x</p>
+        <p className="text-text-muted text-sm">Panel lateral — Story 4.x</p>
       </div>
     </aside>
   )
