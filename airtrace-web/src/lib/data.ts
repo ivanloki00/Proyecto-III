@@ -7,9 +7,12 @@ import type {
   StreetFeatureCollection,
 } from "@/types/lsoa";
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseStorageBase = `${SUPABASE_URL}/storage/v1/object/public/geojson/`;
+
 /**
- * Loads the three static assets shipped under /public/data and indexes them
- * so the rest of the app never has to touch raw I/O again.
+ * Loads all static assets from Supabase Storage (bucket: geojson) and
+ * indexes them so the rest of the app never has to touch raw I/O again.
  *
  * Called once on app mount.
  */
@@ -28,38 +31,38 @@ export async function loadAll(): Promise<LoadedData> {
 }
 
 async function fetchLsoaGeojson(): Promise<LsoaFeatureCollection> {
-  const res = await fetch("/data/lsoa.geojson");
+  const res = await fetch(`${supabaseStorageBase}lsoa.geojson`);
   if (!res.ok) throw new Error(`lsoa.geojson HTTP ${res.status}`);
   return (await res.json()) as LsoaFeatureCollection;
 }
 
 async function fetchStreetsGeojson(): Promise<StreetFeatureCollection> {
-  const res = await fetch("/data/streets.geojson");
+  const res = await fetch(`${supabaseStorageBase}streets.geojson`);
   if (!res.ok) throw new Error(`streets.geojson HTTP ${res.status}`);
   return (await res.json()) as StreetFeatureCollection;
 }
 
 async function fetchSensorsGeojson(): Promise<SensorFeatureCollection> {
-  const res = await fetch("/data/sensors.geojson");
+  const res = await fetch(`${supabaseStorageBase}sensors.geojson`);
   if (!res.ok) throw new Error(`sensors.geojson HTTP ${res.status}`);
   return (await res.json()) as SensorFeatureCollection;
 }
 
 async function fetchSensorTimeline(): Promise<Record<string, string[]>> {
-  const res = await fetch("/data/sensor_timeline.json");
+  const res = await fetch(`${supabaseStorageBase}sensor_timeline.json`);
   if (!res.ok) return {};
   return (await res.json()) as Record<string, string[]>;
 }
 
 async function fetchWardLookup(): Promise<Record<string, string>> {
-  const res = await fetch("/data/lsoa_ward_lookup.json");
+  const res = await fetch(`${supabaseStorageBase}lsoa_ward_lookup.json`);
   if (!res.ok) return {};
   return (await res.json()) as Record<string, string>;
 }
 
 function fetchTimeseries(): Promise<MonthlyRow[]> {
   return new Promise((resolve, reject) => {
-    Papa.parse<MonthlyRow>("/data/timeseries.csv", {
+    Papa.parse<MonthlyRow>(`${supabaseStorageBase}timeseries.csv`, {
       download: true,
       header: true,
       dynamicTyping: true,
