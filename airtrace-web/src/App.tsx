@@ -181,6 +181,20 @@ function MainView({ data }: { data: LoadedData }) {
         }
       }
 
+      // Initial feature-states for sensors
+      {
+        const initToYM = useAppStore.getState().toYM;
+        const keys = Object.keys(data.sensorTimeline).sort();
+        const effectiveMonth = (initToYM in data.sensorTimeline)
+          ? initToYM
+          : (keys[keys.length - 1] ?? initToYM);
+        const activeIds = new Set(data.sensorTimeline[effectiveMonth] ?? []);
+        for (const feat of data.sensorsGeo.features) {
+          const id = feat.properties.device_id;
+          map.setFeatureState({ source: "sensors", id }, { lit: activeIds.has(id) });
+        }
+      }
+
       applyVisibility(map, useAppStore.getState().viewMode, useAppStore.getState().showOverlay);
 
       map.on("click", "streets-line", (e) => {
