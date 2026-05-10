@@ -72,6 +72,7 @@ function MainView({ data }: { data: LoadedData }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
+  const activeStreetRef = useRef<{ props: { name: string | null; highway: string; pm25: number }; lngLat: mapboxgl.LngLat } | null>(null);
 
   const viewMode = useAppStore((s) => s.viewMode);
   const setViewMode = useAppStore((s) => s.setViewMode);
@@ -186,14 +187,18 @@ function MainView({ data }: { data: LoadedData }) {
         const f = e.features?.[0];
         if (!f) return;
         const p = f.properties as { name: string | null; highway: string; pm25: number };
-        const currentFactor = windowedTemporalFactor(data.series, useAppStore.getState().fromYM, useAppStore.getState().toYM);
-        showPopup(map, popupRef, e.lngLat, streetPopupHTML(p, currentFactor, useAppStore.getState().fromYM, useAppStore.getState().toYM));
+        const st = useAppStore.getState();
+        const currentFactor = windowedTemporalFactor(data.series, st.fromYM, st.toYM);
+        activeStreetRef.current = { props: p, lngLat: e.lngLat };
+        showPopup(map, popupRef, e.lngLat, streetPopupHTML(p, currentFactor, st.fromYM, st.toYM));
+        popupRef.current?.on("close", () => { activeStreetRef.current = null; });
       });
       map.on("click", "lsoa-fill", (e) => {
         const f = e.features?.[0];
         if (!f) return;
         const p = f.properties as { LSOA21CD: string };
         setSelected(p.LSOA21CD);
+        activeStreetRef.current = null;
         popupRef.current?.remove();
       });
       map.on("click", "sensors-circle", (e) => {
@@ -235,11 +240,19 @@ function MainView({ data }: { data: LoadedData }) {
     map.setPaintProperty("streets-line", "line-color", streetPaintExpression(factor) as never);
   }, [factor]);
 
-  // Sensor lit state — updates whenever toYM changes
+  // Street popup — re-render HTML when temporal window changes
+  useEffect(() => {
+    if (!activeStreetRef.current || !popupRef.current) return;
+    popupRef.current.setHTML(streetPopupHTML(activeStreetRef.current.props, factor, fromYM, toYM));
+  }, [factor, fromYM, toYM]);
+
+  // Sensor lit state — updates whenever toYM changes; forecast months fall back to last known month
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.getSource("sensors")) return;
-    const activeIds = new Set(data.sensorTimeline[toYM] ?? []);
+    const keys = Object.keys(data.sensorTimeline).sort();
+    const effectiveMonth = (toYM in data.sensorTimeline) ? toYM : (keys[keys.length - 1] ?? toYM);
+    const activeIds = new Set(data.sensorTimeline[effectiveMonth] ?? []);
     for (const feat of data.sensorsGeo.features) {
       const id = feat.properties.device_id;
       map.setFeatureState({ source: "sensors", id }, { lit: activeIds.has(id) });

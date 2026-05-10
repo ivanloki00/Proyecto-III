@@ -151,11 +151,11 @@ function LsoaPanel({
 
       <section className="mb-5">
         <h2 className="text-slate-300 font-medium mb-2">Monthly trajectory</h2>
-        <TimeSeriesChart rows={detail.rows} />
+        <TimeSeriesChart rows={detail.rows} fromYM={fromYM} toYM={toYM} />
         <div className="flex gap-3 text-[10px] text-slate-500 mt-1">
           <span><span className="inline-block w-2 h-2 bg-blue-400 rounded-sm mr-1 align-middle" />Monthly PM2.5</span>
           <span><span className="inline-block w-3 h-2 bg-blue-400/30 rounded-sm mr-1 align-middle" />CI 90 %</span>
-          <span><span className="inline-block w-2 h-2 bg-rose-500 rounded-full mr-1 align-middle" />Forecast</span>
+          <span><span className="inline-block w-4 border-t-2 border-dashed border-rose-500 mr-1 align-middle" />Forecast</span>
         </div>
       </section>
 
@@ -185,7 +185,9 @@ function LsoaPanel({
 }
 
 function SensorsPanel({ data, toYM }: { data: LoadedData; toYM: string }) {
-  const activeIds = new Set(data.sensorTimeline[toYM] ?? []);
+  const timelineKeys = useMemo(() => Object.keys(data.sensorTimeline).sort(), [data.sensorTimeline]);
+  const effectiveMonth = (toYM in data.sensorTimeline) ? toYM : (timelineKeys[timelineKeys.length - 1] ?? toYM);
+  const activeIds = new Set(data.sensorTimeline[effectiveMonth] ?? []);
   const sensors = data.sensorsGeo.features;
 
   const litFinal = sensors.filter((s) => activeIds.has(s.properties.device_id) && s.properties.is_final);
@@ -206,7 +208,9 @@ function SensorsPanel({ data, toYM }: { data: LoadedData; toYM: string }) {
 
       {/* Live snapshot for toYM */}
       <section className="mb-4 rounded-md border border-slate-700 bg-slate-800/50 p-3">
-        <div className="text-[11px] text-slate-400 mb-2 font-mono">{toYM}</div>
+        <div className="text-[11px] text-slate-400 mb-2 font-mono">
+          {effectiveMonth}{effectiveMonth !== toYM ? <span className="text-slate-600 ml-1">(forecast → latest data)</span> : null}
+        </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
             <div className="text-xl font-bold text-emerald-400">{litFinal.length}</div>
