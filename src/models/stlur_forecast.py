@@ -110,10 +110,24 @@ def build_future_meteo(meteo_2024: pd.DataFrame, h_months: int = H_FORECAST) -> 
 
 
 def load_all_temporal_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Carga y prepara los tres datasets temporales base."""
-    sensors  = pd.read_csv(DATA_INT / "sensores_monthly.csv")
-    meteo    = pd.read_csv(DATA_INT / "meteo_monthly.csv")
+    """Carga y prepara los tres datasets temporales base.
+
+    Prefiere los CSV `_full` (panel multianual 2021–2025) cuando existen,
+    para que el forecast cubra todo el rango temporal del frontend.
+    Cae al CSV anual cuando solo está la versión corta.
+    """
+    sensors_path = DATA_INT / "sensores_monthly_full.csv"
+    if not sensors_path.exists():
+        sensors_path = DATA_INT / "sensores_monthly.csv"
+    meteo_path = DATA_INT / "meteo_monthly_full.csv"
+    if not meteo_path.exists():
+        meteo_path = DATA_INT / "meteo_monthly.csv"
+
+    sensors  = pd.read_csv(sensors_path)
+    meteo    = pd.read_csv(meteo_path)
     lsoa_preds = pd.read_csv(DATA_PROC / "lur_barrios_predictions.csv")
+    log.info("Sensores: %s (%d filas) | Meteo: %s (%d filas)",
+             sensors_path.name, len(sensors), meteo_path.name, len(meteo))
 
     meteo   = add_temporal_features(meteo)
     sensors = add_temporal_features(sensors)
