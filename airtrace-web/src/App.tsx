@@ -54,6 +54,34 @@ const PM25_STEP_LSOA_DYNAMIC = [
   "#960096",
 ] as const;
 
+/** Updates sensor circle paint using property-based expressions — avoids setFeatureState/promoteId unreliability. */
+function applySensorState(map: mapboxgl.Map, activeIds: Set<string>) {
+  const ids = Array.from(activeIds);
+  if (ids.length === 0) {
+    map.setPaintProperty("sensors-circle", "circle-color", "#334155");
+    map.setPaintProperty("sensors-circle", "circle-opacity", 0.35);
+    map.setPaintProperty("sensors-circle", "circle-stroke-color", "#475569");
+    map.setPaintProperty("sensors-circle", "circle-radius",
+      ["interpolate", ["linear"], ["zoom"], 10, 4, 14, 6] as never);
+    return;
+  }
+  const inList = ["in", ["get", "device_id"], ["literal", ids]];
+  map.setPaintProperty("sensors-circle", "circle-color", [
+    "case", inList,
+    ["case", ["boolean", ["get", "is_final"], false], "#10b981", "#f97316"],
+    "#334155",
+  ] as never);
+  map.setPaintProperty("sensors-circle", "circle-opacity",
+    ["case", inList, 1, 0.35] as never);
+  map.setPaintProperty("sensors-circle", "circle-stroke-color",
+    ["case", inList, "#ffffff", "#475569"] as never);
+  map.setPaintProperty("sensors-circle", "circle-radius", [
+    "interpolate", ["linear"], ["zoom"],
+    10, ["case", inList, 6, 4],
+    14, ["case", inList, 10, 6],
+  ] as never);
+}
+
 /** Streets paint expression scaled by a per-window seasonal factor. */
 function streetPaintExpression(factor: number) {
   return [
@@ -146,31 +174,15 @@ function MainView({ data }: { data: LoadedData }) {
       map.addSource("sensors", {
         type: "geojson",
         data: data.sensorsGeo as GeoJSON.FeatureCollection,
-        promoteId: "device_id",
       });
       map.addLayer({
         id: "sensors-circle", type: "circle", source: "sensors",
         paint: {
-          // lit = active this month; color: green if final, orange if non-final
-          "circle-color": [
-            "case",
-            ["boolean", ["feature-state", "lit"], false],
-            ["case", ["boolean", ["get", "is_final"], false], "#10b981", "#f97316"],
-            "#334155",
-          ],
-          "circle-radius": [
-            "interpolate", ["linear"], ["zoom"],
-            10, ["case", ["boolean", ["feature-state", "lit"], false], 6, 4],
-            14, ["case", ["boolean", ["feature-state", "lit"], false], 10, 6],
-          ],
-          "circle-stroke-color": [
-            "case",
-            ["boolean", ["feature-state", "lit"], false], "#ffffff", "#475569",
-          ],
+          "circle-color": "#334155",
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 4, 14, 6] as never,
+          "circle-stroke-color": "#475569",
           "circle-stroke-width": 1.5,
-          "circle-opacity": [
-            "case", ["boolean", ["feature-state", "lit"], false], 1, 0.35,
-          ],
+          "circle-opacity": 0.35,
         },
       });
 
@@ -181,18 +193,14 @@ function MainView({ data }: { data: LoadedData }) {
         }
       }
 
-      // Initial feature-states for sensors
+      // Initial sensor paint state
       {
         const initToYM = useAppStore.getState().toYM;
         const keys = Object.keys(data.sensorTimeline).sort();
         const effectiveMonth = (initToYM in data.sensorTimeline)
           ? initToYM
           : (keys[keys.length - 1] ?? initToYM);
-        const activeIds = new Set(data.sensorTimeline[effectiveMonth] ?? []);
-        for (const feat of data.sensorsGeo.features) {
-          const id = feat.properties.device_id;
-          map.setFeatureState({ source: "sensors", id }, { lit: activeIds.has(id) });
-        }
+        applySensorState(map, new Set(data.sensorTimeline[effectiveMonth] ?? []));
       }
 
       applyVisibility(map, useAppStore.getState().viewMode, useAppStore.getState().showOverlay);
@@ -260,17 +268,13 @@ function MainView({ data }: { data: LoadedData }) {
     popupRef.current.setHTML(streetPopupHTML(activeStreetRef.current.props, factor, fromYM, toYM));
   }, [factor, fromYM, toYM]);
 
-  // Sensor lit state — updates whenever toYM changes; forecast months fall back to last known month
+  // Sensor paint state — updates whenever toYM changes; forecast months fall back to last known month
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.getSource("sensors")) return;
+    if (!map || !map.getLayer("sensors-circle")) return;
     const keys = Object.keys(data.sensorTimeline).sort();
     const effectiveMonth = (toYM in data.sensorTimeline) ? toYM : (keys[keys.length - 1] ?? toYM);
-    const activeIds = new Set(data.sensorTimeline[effectiveMonth] ?? []);
-    for (const feat of data.sensorsGeo.features) {
-      const id = feat.properties.device_id;
-      map.setFeatureState({ source: "sensors", id }, { lit: activeIds.has(id) });
-    }
+    applySensorState(map, new Set(data.sensorTimeline[effectiveMonth] ?? []));
   }, [toYM, data]);
 
   // viewMode / overlay
