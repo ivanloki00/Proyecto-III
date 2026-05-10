@@ -277,17 +277,28 @@ function MainView({ data }: { data: LoadedData }) {
     applySensorState(map, new Set(data.sensorTimeline[effectiveMonth] ?? []));
   }, [toYM, data]);
 
-  // viewMode / overlay
+  // viewMode / overlay — also re-applies sensor paint when entering sensors view
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (!map.isStyleLoaded()) {
-      map.once("load", () => applyVisibility(map, viewMode, showOverlay));
-    } else {
+    const apply = () => {
       applyVisibility(map, viewMode, showOverlay);
+      if (viewMode === "sensors" && map.getLayer("sensors-circle")) {
+        const st = useAppStore.getState();
+        const keys = Object.keys(data.sensorTimeline).sort();
+        const effectiveMonth = (st.toYM in data.sensorTimeline)
+          ? st.toYM
+          : (keys[keys.length - 1] ?? st.toYM);
+        applySensorState(map, new Set(data.sensorTimeline[effectiveMonth] ?? []));
+      }
+    };
+    if (!map.isStyleLoaded()) {
+      map.once("load", apply);
+    } else {
+      apply();
     }
     popupRef.current?.remove();
-  }, [viewMode, showOverlay]);
+  }, [viewMode, showOverlay, data]);
 
   return (
     <div className="flex w-full h-screen">
