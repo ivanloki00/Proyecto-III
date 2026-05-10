@@ -3,13 +3,15 @@ import { useAppStore } from "@/store/useAppStore";
 import { TimeSeriesChart } from "@/components/SidePanel/TimeSeriesChart";
 import { FilterPanel } from "@/components/Controls/FilterPanel";
 import { DownloadRanking } from "@/components/Export/DownloadRanking";
-import { gradeOf, GRADE_BINS, WHO_PM25 } from "@/lib/scale";
+import { WHO_PM25, WHO_PM10, binsForPollutant, gradeForPollutant } from "@/lib/scale";
+import type { Pollutant } from "@/types/lsoa";
 import { useMemo } from "react";
 
 interface Props { data: LoadedData; }
 
 export function SidePanel({ data }: Props) {
   const viewMode = useAppStore((s) => s.viewMode);
+  const pollutant = useAppStore((s) => s.pollutant);
   const fromYM = useAppStore((s) => s.fromYM);
   const toYM = useAppStore((s) => s.toYM);
   const selectedLsoa = useAppStore((s) => s.selectedLsoa);
@@ -24,7 +26,7 @@ export function SidePanel({ data }: Props) {
     <aside className="w-[420px] h-full overflow-y-auto bg-slate-900 border-l border-slate-800 p-5 text-sm">
       <header className="mb-5">
         <h1 className="text-xl font-semibold text-white">AirTrace</h1>
-        <p className="text-slate-400 text-xs mt-1">Liverpool · PM2.5 air quality</p>
+        <p className="text-slate-400 text-xs mt-1">Liverpool · {pollutant} air quality</p>
       </header>
 
       {viewMode === "streets" ? (
@@ -37,6 +39,7 @@ export function SidePanel({ data }: Props) {
           fromYM={fromYM}
           toYM={toYM}
           selectedLsoa={selectedLsoa}
+          pollutant={pollutant}
           onCloseDetail={() => setSelected(null)}
         />
       )}
@@ -75,14 +78,18 @@ function StreetsPanel({ data, totalRows }: { data: LoadedData; totalRows: number
 }
 
 function LsoaPanel({
-  data, fromYM, toYM, selectedLsoa, onCloseDetail,
+  data, fromYM, toYM, selectedLsoa, pollutant, onCloseDetail,
 }: {
   data: LoadedData;
   fromYM: string;
   toYM: string;
   selectedLsoa: string | null;
+  pollutant: Pollutant;
   onCloseDetail: () => void;
 }) {
+  const predField = pollutant === "PM10" ? "PM10_pred" : "PM2.5_pred";
+  const whoLimit  = pollutant === "PM10" ? WHO_PM10 : WHO_PM25;
+
   const wardName = selectedLsoa ? (data.wardLookup[selectedLsoa] ?? null) : null;
   const detail = useMemo(() => {
     if (!selectedLsoa) return null;
@@ -94,14 +101,14 @@ function LsoaPanel({
     let sum = 0, n = 0;
     for (const r of rows) {
       if (r.year_month >= fromYM && r.year_month <= toYM) {
-        sum += r["PM2.5_pred"];
-        n += 1;
+        const v = r[predField];
+        if (v !== undefined) { sum += v; n += 1; }
       }
     }
     const windowMean = n > 0 ? sum / n : NaN;
     const forecast = rows.find((r) => r.type === "forecast") ?? null;
     return { rows, properties: feature.properties, windowMean, nMonths: n, forecast };
-  }, [selectedLsoa, data, fromYM, toYM]);
+  }, [selectedLsoa, data, fromYM, toYM, predField]);
 
   if (!detail) {
     return (
@@ -110,18 +117,20 @@ function LsoaPanel({
           <p className="font-medium mb-1">No area selected</p>
           <p className="text-slate-400">Click any polygon on the map to see its monthly trajectory, 90 % CI band and forecast.</p>
         </section>
-        <FilterPanel data={data} />
+        <FilterPanel data={data} pollutant={pollutant} />
         <DownloadRanking data={data} />
       </>
     );
   }
 
-  const grade = gradeOf(detail.windowMean);
-  const color = GRADE_BINS.find((b) => b.grade === grade)!.color;
-  const ratio = (detail.windowMean / WHO_PM25).toFixed(1);
+  const bins  = binsForPollutant(pollutant);
+  const grade = gradeForPollutant(detail.windowMean, pollutant);
+  const color = bins.find((b) => b.grade === grade)!.color;
+  const ratio = (detail.windowMean / whoLimit).toFixed(1);
 
-  const fcGrade = detail.forecast ? gradeOf(detail.forecast["PM2.5_pred"]) : null;
-  const fcColor = fcGrade ? GRADE_BINS.find((b) => b.grade === fcGrade)!.color : null;
+  const fcValue = detail.forecast ? (detail.forecast[predField] ?? detail.forecast["PM2.5_pred"]) : null;
+  const fcGrade = fcValue !== null ? gradeForPollutant(fcValue, pollutant) : null;
+  const fcColor = fcGrade ? bins.find((b) => b.grade === fcGrade)!.color : null;
 
   return (
     <>
@@ -144,31 +153,31 @@ function LsoaPanel({
           >{grade}</span>
           <div>
             <div className="text-xl font-semibold text-white">{detail.windowMean.toFixed(2)} <span className="text-sm text-slate-400">µg/m³</span></div>
-            <div className="text-[11px] text-slate-400">mean over {fromYM} → {toYM} · × {ratio} above WHO</div>
+            <div className="text-[11px] text-slate-400">mean {pollutant} over {fromYM} → {toYM} · × {ratio} above WHO</div>
           </div>
         </div>
       </section>
 
       <section className="mb-5">
         <h2 className="text-slate-300 font-medium mb-2">Monthly trajectory</h2>
-        <TimeSeriesChart rows={detail.rows} fromYM={fromYM} toYM={toYM} />
+        <TimeSeriesChart rows={detail.rows} fromYM={fromYM} toYM={toYM} pollutant={pollutant} />
         <div className="flex gap-3 text-[10px] text-slate-500 mt-1">
-          <span><span className="inline-block w-2 h-2 bg-blue-400 rounded-sm mr-1 align-middle" />Monthly PM2.5</span>
+          <span><span className="inline-block w-2 h-2 bg-blue-400 rounded-sm mr-1 align-middle" />Monthly {pollutant}</span>
           <span><span className="inline-block w-3 h-2 bg-blue-400/30 rounded-sm mr-1 align-middle" />CI 90 %</span>
           <span><span className="inline-block w-4 border-t-2 border-dashed border-rose-500 mr-1 align-middle" />Forecast</span>
         </div>
       </section>
 
-      {detail.forecast && fcColor && (
+      {detail.forecast && fcColor && fcValue !== null && (
         <section className="mb-5 rounded-md border border-rose-500/30 bg-rose-500/10 p-3">
-          <div className="text-xs text-rose-200 font-medium mb-1">Forecast for {detail.forecast.year_month}</div>
+          <div className="text-xs text-rose-200 font-medium mb-1">Forecast {pollutant} for {detail.forecast.year_month}</div>
           <div className="flex items-center gap-3">
             <span className="inline-block w-7 h-7 rounded-md text-center leading-7 font-bold text-white text-sm" style={{ backgroundColor: fcColor }}>
               {fcGrade}
             </span>
             <div>
               <div className="text-white font-semibold">
-                {detail.forecast["PM2.5_pred"].toFixed(2)} <span className="text-xs text-slate-400">µg/m³</span>
+                {fcValue.toFixed(2)} <span className="text-xs text-slate-400">µg/m³</span>
               </div>
               <div className="text-[11px] text-slate-400">
                 CI 90 %: {detail.forecast.ci_lower.toFixed(2)} – {detail.forecast.ci_upper.toFixed(2)}

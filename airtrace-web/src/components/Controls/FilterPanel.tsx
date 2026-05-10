@@ -1,12 +1,12 @@
 import { useMemo } from "react";
-import type { LoadedData } from "@/types/lsoa";
+import type { LoadedData, Pollutant } from "@/types/lsoa";
 import { useAppStore } from "@/store/useAppStore";
 import { buildRanking } from "@/lib/exposure";
-import { GRADE_BINS } from "@/lib/scale";
+import { GRADE_BINS, GRADE_BINS_PM10 } from "@/lib/scale";
 
-interface Props { data: LoadedData; }
+interface Props { data: LoadedData; pollutant?: Pollutant; }
 
-export function FilterPanel({ data }: Props) {
+export function FilterPanel({ data, pollutant = "PM2.5" }: Props) {
   const fromYM = useAppStore((s) => s.fromYM);
   const toYM = useAppStore((s) => s.toYM);
   const greenCoverMax = useAppStore((s) => s.greenCoverMax);
@@ -14,12 +14,14 @@ export function FilterPanel({ data }: Props) {
   const setGreenCoverMax = useAppStore((s) => s.setGreenCoverMax);
   const setPopDensityMin = useAppStore((s) => s.setPopDensityMin);
 
+  const bins = pollutant === "PM10" ? GRADE_BINS_PM10 : GRADE_BINS;
+
   const ranking = useMemo(
     () =>
       buildRanking(data.lsoaGeo.features, data.series, fromYM, toYM, {
         greenCoverMax, popDensityMin,
-      }),
-    [data, fromYM, toYM, greenCoverMax, popDensityMin],
+      }, pollutant),
+    [data, fromYM, toYM, greenCoverMax, popDensityMin, pollutant],
   );
 
   return (
@@ -50,7 +52,7 @@ export function FilterPanel({ data }: Props) {
         <table className="w-full text-[11px]">
           <tbody>
             {ranking.slice(0, 10).map((r) => {
-              const color = GRADE_BINS.find((b) => b.grade === r.score)?.color ?? "#666";
+              const color = bins.find((b) => b.grade === r.score)?.color ?? "#666";
               return (
                 <tr key={r.LSOA21CD} className="border-t border-slate-800">
                   <td className="py-0.5 pr-2 text-slate-500 font-mono">{r.rank}</td>

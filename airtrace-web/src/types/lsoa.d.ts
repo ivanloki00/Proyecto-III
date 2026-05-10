@@ -39,7 +39,9 @@ export interface LsoaProperties {
   LSOA21CD: string;
   LSOA21NM: string;
   "PM2.5_final": number;
+  "PM10_final"?: number;
   score_pm25: Grade;
+  score_pm10?: Grade;
   pct_green: number;
   pop_density_km2: number;
   population: number;
@@ -87,6 +89,7 @@ export interface MonthlyRow {
   year_month: string;
   date: string;
   "PM2.5_pred": number;
+  "PM10_pred"?: number;
   ci_lower: number;
   ci_upper: number;
   temporal_factor: number;
@@ -137,9 +140,11 @@ export interface RankingRow {
 /* -------------------------------------------------------------------------- */
 
 export type ViewMode = "streets" | "lsoa" | "sensors";
+export type Pollutant = "PM2.5" | "PM10";
 
 export interface AppState {
   viewMode: ViewMode;
+  pollutant: Pollutant;
   fromYM: string;
   toYM: string;
   selectedLsoa: string | null;
@@ -150,6 +155,7 @@ export interface AppState {
   playing: boolean;
 
   setViewMode: (m: ViewMode) => void;
+  setPollutant: (p: Pollutant) => void;
   setPlaying: (v: boolean) => void;
   togglePlay: () => void;
   setRange: (from: string, to: string) => void;

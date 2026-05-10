@@ -431,6 +431,7 @@ def forecast_all_lsoas(
     lsoa_preds: pd.DataFrame,
     meteo_2024: pd.DataFrame,
     h_months: int = H_FORECAST,
+    save: bool = True,
 ) -> pd.DataFrame:
     """
     Genera proyección histórica + pronóstico para TODOS los LSOAs (302).
@@ -450,10 +451,11 @@ def forecast_all_lsoas(
             log.warning("LSOA %s omitido: %s", lid, e)
 
     df_all = pd.concat(all_rows, ignore_index=True)
-    out_path = ROOT / "outputs" / "stlur_predictions.csv"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    df_all.to_csv(out_path, index=False)
-    log.info("Predicciones completas exportadas → %s (%d filas)", out_path, len(df_all))
+    if save:
+        out_path = ROOT / "outputs" / "stlur_predictions.csv"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        df_all.to_csv(out_path, index=False)
+        log.info("Predicciones completas exportadas → %s (%d filas)", out_path, len(df_all))
     return df_all
 
 
@@ -678,11 +680,26 @@ def main():
         plot_multi_lsoa(model_demo, lsoa_preds, meteo, lsoa_ids=example_ids)
 
     # ── 4. Exportar predicciones completas para los 302 LSOAs ─────────────
-    if "PM2.5" in models:
-        log.info("Generando predicciones para todos los LSOAs (puede tardar ~2 min)...")
-        df_all = forecast_all_lsoas(models["PM2.5"], lsoa_preds, meteo)
-        log.info("Exportado: %d filas para %d LSOAs",
-                 len(df_all), df_all["lsoa_id"].nunique())
+    dfs: dict[str, pd.DataFrame] = {}
+    for t in TARGETS:
+        if t in models:
+            log.info("Generando predicciones %s para todos los LSOAs (puede tardar ~2 min)...", t)
+            dfs[t] = forecast_all_lsoas(models[t], lsoa_preds, meteo, save=False)
+            log.info("  %s: %d filas para %d LSOAs", t, len(dfs[t]), dfs[t]["lsoa_id"].nunique())
+
+    if dfs:
+        base = dfs.get("PM2.5", next(iter(dfs.values())))
+        if "PM2.5" in dfs and "PM10" in dfs:
+            base = base.merge(
+                dfs["PM10"][["lsoa_id", "year_month", "type", "PM10_pred"]],
+                on=["lsoa_id", "year_month", "type"],
+                how="left",
+            )
+        out_path = ROOT / "outputs" / "stlur_predictions.csv"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        base.to_csv(out_path, index=False)
+        log.info("CSV final exportado → %s (%d filas, cols: %s)",
+                 out_path, len(base), list(base.columns))
 
     log.info("=== Pipeline ST-LUR completado ===")
 

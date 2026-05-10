@@ -1,27 +1,40 @@
-import type { LsoaProperties, MonthlyRow, RankingRow } from "@/types/lsoa";
-import { gradeOf, WHO_PM25, UK_2040 } from "@/lib/scale";
+import type { LsoaProperties, MonthlyRow, Pollutant, RankingRow } from "@/types/lsoa";
+import { gradeOf, gradeOfPM10, WHO_PM25, UK_2040, WHO_PM10, UK_PM10 } from "@/lib/scale";
 
-/** Mean PM2.5_pred over an inclusive [fromYM, toYM] window for one LSOA. */
-function meanInWindow(rows: MonthlyRow[], fromYM: string, toYM: string): { mean: number; n: number } {
+type PredField = "PM2.5_pred" | "PM10_pred";
+
+function fieldFor(pollutant: Pollutant): PredField {
+  return pollutant === "PM10" ? "PM10_pred" : "PM2.5_pred";
+}
+
+/** Mean of the given field over an inclusive [fromYM, toYM] window for one LSOA. */
+function meanInWindow(
+  rows: MonthlyRow[],
+  fromYM: string,
+  toYM: string,
+  field: PredField = "PM2.5_pred",
+): { mean: number; n: number } {
   let sum = 0, n = 0;
   for (const r of rows) {
     if (r.year_month >= fromYM && r.year_month <= toYM) {
-      sum += r["PM2.5_pred"];
-      n += 1;
+      const v = r[field];
+      if (v !== undefined && v !== null) { sum += v; n += 1; }
     }
   }
   return { mean: n > 0 ? sum / n : NaN, n };
 }
 
-/** Map<LSOA21CD, meanPM25> over [fromYM, toYM]. */
+/** Map<LSOA21CD, mean> over [fromYM, toYM] for the given pollutant. */
 export function windowedMeans(
   series: Map<string, MonthlyRow[]>,
   fromYM: string,
   toYM: string,
+  pollutant: Pollutant = "PM2.5",
 ): Map<string, number> {
+  const field = fieldFor(pollutant);
   const out = new Map<string, number>();
   for (const [id, rows] of series) {
-    const { mean } = meanInWindow(rows, fromYM, toYM);
+    const { mean } = meanInWindow(rows, fromYM, toYM, field);
     out.set(id, mean);
   }
   return out;
@@ -36,7 +49,7 @@ export function countAbove(means: Map<string, number>, threshold: number): numbe
 
 /**
  * Build the ranking rows for the current window + filters.
- * Sorted by mean PM2.5 descending; rank assigned 1..N after filtering.
+ * Sorted by mean pollutant value descending; rank assigned 1..N after filtering.
  */
 export function buildRanking(
   features: Array<{ properties: LsoaProperties }>,
@@ -44,13 +57,19 @@ export function buildRanking(
   fromYM: string,
   toYM: string,
   filters: { greenCoverMax: number | null; popDensityMin: number | null },
+  pollutant: Pollutant = "PM2.5",
 ): RankingRow[] {
+  const field = fieldFor(pollutant);
+  const whoLimit = pollutant === "PM10" ? WHO_PM10 : WHO_PM25;
+  const ukLimit  = pollutant === "PM10" ? UK_PM10  : UK_2040;
+  const gradeFunc = pollutant === "PM10" ? gradeOfPM10 : gradeOf;
+
   const rows: Array<Omit<RankingRow, "rank">> = [];
   for (const f of features) {
     const p = f.properties;
     const rowsForLsoa = series.get(p.LSOA21CD);
     if (!rowsForLsoa) continue;
-    const { mean, n } = meanInWindow(rowsForLsoa, fromYM, toYM);
+    const { mean, n } = meanInWindow(rowsForLsoa, fromYM, toYM, field);
     if (!Number.isFinite(mean)) continue;
     if (filters.greenCoverMax !== null && p.pct_green > filters.greenCoverMax) continue;
     if (filters.popDensityMin !== null && p.pop_density_km2 < filters.popDensityMin) continue;
@@ -59,9 +78,9 @@ export function buildRanking(
       LSOA21NM: p.LSOA21NM,
       mean_pm25: round2(mean),
       n_months: n,
-      ratio_vs_who: round2(mean / WHO_PM25),
-      ratio_vs_uk2040: round2(mean / UK_2040),
-      score: gradeOf(mean),
+      ratio_vs_who: round2(mean / whoLimit),
+      ratio_vs_uk2040: round2(mean / ukLimit),
+      score: gradeFunc(mean),
       pct_green: round2(p.pct_green),
       pop_density_km2: round2(p.pop_density_km2),
       population: p.population,

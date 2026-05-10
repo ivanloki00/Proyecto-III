@@ -6,6 +6,7 @@ const DEFAULT_TO = "2025-12";
 
 export const useAppStore = create<AppState>((set) => ({
   viewMode: "streets",
+  pollutant: "PM2.5",
   fromYM: DEFAULT_FROM,
   toYM: DEFAULT_TO,
   selectedLsoa: null,
@@ -15,6 +16,7 @@ export const useAppStore = create<AppState>((set) => ({
   playing: false,
 
   setViewMode: (m) => set({ viewMode: m }),
+  setPollutant: (p) => set({ pollutant: p }),
   setRange: (from, to) => set({ fromYM: from, toYM: to }),
   setSelected: (id) => set({ selectedLsoa: id }),
   toggleOverlay: () => set((s) => ({ showOverlay: !s.showOverlay })),

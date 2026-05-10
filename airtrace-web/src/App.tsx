@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import type { LoadedData } from "@/types/lsoa";
 import { loadAll } from "@/lib/data";
-import { GRADE_BINS, WHO_PM25, gradeOf } from "@/lib/scale";
+import { GRADE_BINS, GRADE_BINS_PM10, WHO_PM25, UK_PM10, gradeOf, gradeOfPM10, binsForPollutant } from "@/lib/scale";
 import { windowedMeans, countAbove, windowedTemporalFactor } from "@/lib/exposure";
+import type { Pollutant } from "@/types/lsoa";
 import { useAppStore } from "@/store/useAppStore";
 import { DateRangeSlider } from "@/components/Controls/DateRangeSlider";
 import { SidePanel } from "@/components/SidePanel/SidePanel";
@@ -54,6 +55,17 @@ const PM25_STEP_LSOA_DYNAMIC = [
   "#960096",
 ] as const;
 
+const PM10_STEP_LSOA_DYNAMIC = [
+  "step", ["coalesce", ["feature-state", "meanPM10"], 0],
+  "#475569", 0.001,
+  "#00c864", 15,
+  "#c8e632", 30,
+  "#ffc800", 45,
+  "#ff8200", 60,
+  "#e63232", 75,
+  "#960096",
+] as const;
+
 /** Updates sensor circle paint using property-based expressions — avoids setFeatureState/promoteId unreliability. */
 function applySensorState(map: mapboxgl.Map, activeIds: Set<string>) {
   const ids = Array.from(activeIds);
@@ -100,7 +112,19 @@ function lsoaBbox(feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygo
 }
 
 /** Streets paint expression scaled by a per-window seasonal factor. */
-function streetPaintExpression(factor: number) {
+function streetPaintExpression(factor: number, pollutant: Pollutant = "PM2.5") {
+  if (pollutant === "PM10") {
+    return [
+      "step",
+      ["*", ["get", "pm10"], factor],
+      "#00c864", 15,
+      "#c8e632", 30,
+      "#ffc800", 45,
+      "#ff8200", 60,
+      "#e63232", 75,
+      "#960096",
+    ];
+  }
   return [
     "step",
     ["*", ["get", "pm25"], factor],
@@ -117,11 +141,13 @@ function MainView({ data }: { data: LoadedData }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
-  const activeStreetRef = useRef<{ props: { name: string | null; highway: string; pm25: number }; lngLat: mapboxgl.LngLat } | null>(null);
+  const activeStreetRef = useRef<{ props: { name: string | null; highway: string; pm25: number; pm10?: number }; lngLat: mapboxgl.LngLat } | null>(null);
   const prevSelectedRef = useRef<string | null>(null);
 
   const viewMode = useAppStore((s) => s.viewMode);
   const setViewMode = useAppStore((s) => s.setViewMode);
+  const pollutant = useAppStore((s) => s.pollutant);
+  const setPollutant = useAppStore((s) => s.setPollutant);
   const fromYM = useAppStore((s) => s.fromYM);
   const toYM = useAppStore((s) => s.toYM);
   const selectedLsoa = useAppStore((s) => s.selectedLsoa);
@@ -129,8 +155,12 @@ function MainView({ data }: { data: LoadedData }) {
   const showOverlay = useAppStore((s) => s.showOverlay);
   const toggleOverlay = useAppStore((s) => s.toggleOverlay);
 
-  const means = useMemo(() => windowedMeans(data.series, fromYM, toYM), [data.series, fromYM, toYM]);
-  const aboveUK = useMemo(() => countAbove(means, 10), [means]);
+  const means = useMemo(
+    () => windowedMeans(data.series, fromYM, toYM, pollutant),
+    [data.series, fromYM, toYM, pollutant],
+  );
+  const overlayThreshold = pollutant === "PM10" ? UK_PM10 : 10;
+  const aboveUK = useMemo(() => countAbove(means, overlayThreshold), [means, overlayThreshold]);
   const factor = useMemo(() => windowedTemporalFactor(data.series, fromYM, toYM), [data.series, fromYM, toYM]);
   const totalLsoas = data.lsoaGeo.features.length;
 
@@ -235,11 +265,11 @@ function MainView({ data }: { data: LoadedData }) {
       map.on("click", "streets-line", (e) => {
         const f = e.features?.[0];
         if (!f) return;
-        const p = f.properties as { name: string | null; highway: string; pm25: number };
+        const p = f.properties as { name: string | null; highway: string; pm25: number; pm10?: number };
         const st = useAppStore.getState();
         const currentFactor = windowedTemporalFactor(data.series, st.fromYM, st.toYM);
         activeStreetRef.current = { props: p, lngLat: e.lngLat };
-        showPopup(map, popupRef, e.lngLat, streetPopupHTML(p, currentFactor, st.fromYM, st.toYM));
+        showPopup(map, popupRef, e.lngLat, streetPopupHTML(p, currentFactor, st.fromYM, st.toYM, st.pollutant));
         popupRef.current?.on("close", () => { activeStreetRef.current = null; });
       });
       map.on("click", "lsoa-fill", (e) => {
@@ -273,27 +303,43 @@ function MainView({ data }: { data: LoadedData }) {
     };
   }, [data, setSelected]);
 
-  // LSOA feature-state on slider change
+  // LSOA feature-state on slider or pollutant change
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.getSource("lsoa")) return;
+    const stateKey = pollutant === "PM10" ? "meanPM10" : "meanPM25";
     for (const [id, mean] of means) {
-      map.setFeatureState({ source: "lsoa", id }, { meanPM25: Number.isFinite(mean) ? mean : null });
+      map.setFeatureState({ source: "lsoa", id }, { [stateKey]: Number.isFinite(mean) ? mean : null });
     }
-  }, [means]);
+    // Switch fill paint expression
+    if (map.getLayer("lsoa-fill")) {
+      const expr = pollutant === "PM10" ? PM10_STEP_LSOA_DYNAMIC : PM25_STEP_LSOA_DYNAMIC;
+      map.setPaintProperty("lsoa-fill", "fill-color", expr as never);
+    }
+    // Switch overlay threshold
+    if (map.getLayer("lsoa-overlay")) {
+      const threshold = pollutant === "PM10" ? UK_PM10 : 10;
+      const stateKeyOverlay = pollutant === "PM10" ? "meanPM10" : "meanPM25";
+      map.setPaintProperty("lsoa-overlay", "line-opacity", [
+        "case",
+        [">", ["coalesce", ["feature-state", stateKeyOverlay], 0], threshold],
+        1, 0,
+      ] as never);
+    }
+  }, [means, pollutant]);
 
-  // Streets paint expression on slider change
+  // Streets paint expression on slider or pollutant change
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.getLayer("streets-line")) return;
-    map.setPaintProperty("streets-line", "line-color", streetPaintExpression(factor) as never);
-  }, [factor]);
+    map.setPaintProperty("streets-line", "line-color", streetPaintExpression(factor, pollutant) as never);
+  }, [factor, pollutant]);
 
-  // Street popup — re-render HTML when temporal window changes
+  // Street popup — re-render HTML when temporal window or pollutant changes
   useEffect(() => {
     if (!activeStreetRef.current || !popupRef.current) return;
-    popupRef.current.setHTML(streetPopupHTML(activeStreetRef.current.props, factor, fromYM, toYM));
-  }, [factor, fromYM, toYM]);
+    popupRef.current.setHTML(streetPopupHTML(activeStreetRef.current.props, factor, fromYM, toYM, pollutant));
+  }, [factor, fromYM, toYM, pollutant]);
 
   // Sensor paint state — updates whenever toYM changes; forecast months fall back to last known month
   useEffect(() => {
@@ -349,16 +395,24 @@ function MainView({ data }: { data: LoadedData }) {
       <div className="flex-1 relative">
         <div ref={containerRef} className="absolute inset-0" />
 
-        <div className="absolute top-3 left-3 z-10 flex bg-slate-900/85 backdrop-blur rounded-md border border-slate-700 overflow-hidden text-xs">
-          <ToggleBtn active={viewMode === "streets"} onClick={() => setViewMode("streets")}>
-            Streets <span className="opacity-60">(8 450)</span>
-          </ToggleBtn>
-          <ToggleBtn active={viewMode === "lsoa"} onClick={() => setViewMode("lsoa")}>
-            Neighbourhoods — LSOA <span className="opacity-60">(302)</span>
-          </ToggleBtn>
-          <ToggleBtn active={viewMode === "sensors"} onClick={() => setViewMode("sensors")}>
-            Sensors <span className="opacity-60">(68)</span>
-          </ToggleBtn>
+        <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
+          <div className="flex bg-slate-900/85 backdrop-blur rounded-md border border-slate-700 overflow-hidden text-xs">
+            <ToggleBtn active={viewMode === "streets"} onClick={() => setViewMode("streets")}>
+              Streets <span className="opacity-60">(8 450)</span>
+            </ToggleBtn>
+            <ToggleBtn active={viewMode === "lsoa"} onClick={() => setViewMode("lsoa")}>
+              Neighbourhoods — LSOA <span className="opacity-60">(302)</span>
+            </ToggleBtn>
+            <ToggleBtn active={viewMode === "sensors"} onClick={() => setViewMode("sensors")}>
+              Sensors <span className="opacity-60">(68)</span>
+            </ToggleBtn>
+          </div>
+          {viewMode !== "sensors" && (
+            <div className="flex bg-slate-900/85 backdrop-blur rounded-md border border-slate-700 overflow-hidden text-xs self-start">
+              <ToggleBtn active={pollutant === "PM2.5"} onClick={() => setPollutant("PM2.5")}>PM2.5</ToggleBtn>
+              <ToggleBtn active={pollutant === "PM10"}  onClick={() => setPollutant("PM10")}>PM10</ToggleBtn>
+            </div>
+          )}
         </div>
 
         {/* Slider always visible — applies to both views. */}
@@ -372,10 +426,10 @@ function MainView({ data }: { data: LoadedData }) {
                 ? "bg-amber-500/20 border-amber-500/50 text-amber-200"
                 : "bg-slate-900/85 border-slate-700 text-slate-400 hover:text-slate-200"
             }`}
-            title="Toggle white outline on LSOAs above UK 2040 (10 µg/m³)"
+            title={`Toggle outline on LSOAs above ${pollutant === "PM10" ? "UK LAQM 40 µg/m³" : "UK 2040 10 µg/m³"}`}
           >
             {showOverlay ? "● " : "○ "}
-            Above UK 2040: <span className="font-semibold">{aboveUK} / {totalLsoas}</span>
+            Above {pollutant === "PM10" ? "UK LAQM" : "UK 2040"}: <span className="font-semibold">{aboveUK} / {totalLsoas}</span>
             <span className="opacity-70"> ({((aboveUK / totalLsoas) * 100).toFixed(0)} %)</span>
           </button>
         )}
@@ -388,9 +442,9 @@ function MainView({ data }: { data: LoadedData }) {
         )}
 
         <div className="absolute bottom-6 right-3 z-10 bg-slate-900/85 backdrop-blur border border-slate-700 rounded-md p-3 text-xs text-slate-200">
-          <div className="font-medium mb-2">PM2.5 — A–F scale</div>
+          <div className="font-medium mb-2">{pollutant} — A–F scale</div>
           <ul className="space-y-1">
-            {GRADE_BINS.map((b) => (
+            {binsForPollutant(pollutant).map((b) => (
               <li key={b.grade} className="flex items-center gap-2">
                 <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: b.color }} />
                 <span className="font-mono w-3">{b.grade}</span>
@@ -444,14 +498,23 @@ function showPopup(map: mapboxgl.Map, ref: React.RefObject<mapboxgl.Popup | null
   ref.current = new mapboxgl.Popup({ closeButton: true, maxWidth: "280px" }).setLngLat(lngLat).setHTML(html).addTo(map);
 }
 
-function streetPopupHTML(p: { name: string | null; highway: string; pm25: number }, factor: number, fromYM: string, toYM: string) {
-  const scaled = p.pm25 * factor;
-  const grade = gradeOf(scaled);
-  const color = GRADE_BINS.find((b) => b.grade === grade)!.color;
-  const ratio = (scaled / WHO_PM25).toFixed(1);
-  const name = p.name ?? "Unnamed road";
+function streetPopupHTML(
+  p: { name: string | null; highway: string; pm25: number; pm10?: number },
+  factor: number,
+  fromYM: string,
+  toYM: string,
+  pollutant: Pollutant = "PM2.5",
+) {
+  const base   = pollutant === "PM10" ? (p.pm10 ?? p.pm25 * 2) : p.pm25;
+  const scaled = base * factor;
+  const grade  = pollutant === "PM10" ? gradeOfPM10(scaled) : gradeOf(scaled);
+  const bins   = pollutant === "PM10" ? GRADE_BINS_PM10 : GRADE_BINS;
+  const color  = bins.find((b) => b.grade === grade)!.color;
+  const whoLimit = pollutant === "PM10" ? UK_PM10 : WHO_PM25;
+  const ratio  = (scaled / whoLimit).toFixed(1);
+  const name   = p.name ?? "Unnamed road";
   const factorLabel = factor === 1 ? "" : ` · × ${factor.toFixed(2)} seasonal`;
-  return `<div style="font-family:system-ui;color:#0f172a;padding:2px 4px"><div style="font-weight:600">${esc(name)}</div><div style="font-size:11px;color:#64748b;margin-bottom:8px">${esc(p.highway)}${factorLabel}</div><div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:30px;height:30px;border-radius:6px;background:${color};color:#fff;font-weight:700;text-align:center;line-height:30px">${grade}</span><span style="font-size:18px;font-weight:600">${scaled.toFixed(1)} µg/m³</span></div><div style="font-size:11px;color:#475569;margin-top:6px">× ${ratio} above WHO · annual base ${p.pm25.toFixed(1)} µg/m³</div><div style="font-size:10px;color:#94a3b8;margin-top:2px">Window ${fromYM} → ${toYM}</div></div>`;
+  return `<div style="font-family:system-ui;color:#0f172a;padding:2px 4px"><div style="font-weight:600">${esc(name)}</div><div style="font-size:11px;color:#64748b;margin-bottom:8px">${esc(p.highway)}${factorLabel}</div><div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:30px;height:30px;border-radius:6px;background:${color};color:#fff;font-weight:700;text-align:center;line-height:30px">${grade}</span><span style="font-size:18px;font-weight:600">${scaled.toFixed(1)} µg/m³</span></div><div style="font-size:11px;color:#475569;margin-top:6px">× ${ratio} above WHO · annual base ${base.toFixed(1)} µg/m³ (${pollutant})</div><div style="font-size:10px;color:#94a3b8;margin-top:2px">Window ${fromYM} → ${toYM}</div></div>`;
 }
 
 function sensorPopupHTML(p: { name: string; device_id: string; status: string; date_from?: string; date_to?: string }) {
