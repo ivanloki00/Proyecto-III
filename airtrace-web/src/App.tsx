@@ -82,6 +82,23 @@ function applySensorState(map: mapboxgl.Map, activeIds: Set<string>) {
   ] as never);
 }
 
+/** Computes the [west, south, east, north] bounding box of a Polygon or MultiPolygon feature. */
+function lsoaBbox(feature: GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>): [number, number, number, number] {
+  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+  const rings = feature.geometry.type === "Polygon"
+    ? feature.geometry.coordinates
+    : feature.geometry.coordinates.flat(1);
+  for (const ring of rings) {
+    for (const [lng, lat] of ring) {
+      if (lng < minLng) minLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lng > maxLng) maxLng = lng;
+      if (lat > maxLat) maxLat = lat;
+    }
+  }
+  return [minLng, minLat, maxLng, maxLat];
+}
+
 /** Streets paint expression scaled by a per-window seasonal factor. */
 function streetPaintExpression(factor: number) {
   return [
@@ -101,11 +118,13 @@ function MainView({ data }: { data: LoadedData }) {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
   const activeStreetRef = useRef<{ props: { name: string | null; highway: string; pm25: number }; lngLat: mapboxgl.LngLat } | null>(null);
+  const prevSelectedRef = useRef<string | null>(null);
 
   const viewMode = useAppStore((s) => s.viewMode);
   const setViewMode = useAppStore((s) => s.setViewMode);
   const fromYM = useAppStore((s) => s.fromYM);
   const toYM = useAppStore((s) => s.toYM);
+  const selectedLsoa = useAppStore((s) => s.selectedLsoa);
   const setSelected = useAppStore((s) => s.setSelected);
   const showOverlay = useAppStore((s) => s.showOverlay);
   const toggleOverlay = useAppStore((s) => s.toggleOverlay);
@@ -158,6 +177,14 @@ function MainView({ data }: { data: LoadedData }) {
             [">", ["coalesce", ["feature-state", "meanPM25"], 0], 10],
             1, 0,
           ],
+        },
+      });
+      map.addLayer({
+        id: "lsoa-selected", type: "line", source: "lsoa",
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 3,
+          "line-opacity": ["case", ["boolean", ["feature-state", "selected"], false], 1, 0],
         },
       });
 
@@ -277,6 +304,23 @@ function MainView({ data }: { data: LoadedData }) {
     applySensorState(map, new Set(data.sensorTimeline[effectiveMonth] ?? []));
   }, [toYM, data]);
 
+  // Selected LSOA — highlight border + fly to
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.getSource("lsoa")) return;
+    if (prevSelectedRef.current) {
+      map.setFeatureState({ source: "lsoa", id: prevSelectedRef.current }, { selected: false });
+    }
+    prevSelectedRef.current = selectedLsoa;
+    if (!selectedLsoa) return;
+    map.setFeatureState({ source: "lsoa", id: selectedLsoa }, { selected: true });
+    const feature = data.lsoaGeo.features.find((f) => f.properties.LSOA21CD === selectedLsoa);
+    if (feature) {
+      const [w, s, e, n] = lsoaBbox(feature as GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>);
+      map.fitBounds([[w, s], [e, n]], { padding: 100, duration: 800, maxZoom: 14 });
+    }
+  }, [selectedLsoa, data]);
+
   // viewMode / overlay — also re-applies sensor paint when entering sensors view
   useEffect(() => {
     const map = mapRef.current;
@@ -376,18 +420,21 @@ function applyVisibility(map: mapboxgl.Map, viewMode: "streets" | "lsoa" | "sens
     set("lsoa-fill", "none");
     set("lsoa-outline", "none");
     set("lsoa-overlay", "none");
+    set("lsoa-selected", "none");
     set("sensors-circle", "none");
   } else if (viewMode === "lsoa") {
     set("streets-line", "none");
     set("lsoa-fill", "visible");
     set("lsoa-outline", "visible");
     set("lsoa-overlay", showOverlay ? "visible" : "none");
+    set("lsoa-selected", "visible");
     set("sensors-circle", "none");
   } else {
     set("streets-line", "none");
     set("lsoa-fill", "none");
     set("lsoa-outline", "none");
     set("lsoa-overlay", "none");
+    set("lsoa-selected", "none");
     set("sensors-circle", "visible");
   }
 }

@@ -51,8 +51,10 @@ export function TimeSeriesChart({ rows, fromYM, toYM }: Props) {
           <Area
             type="monotone" dataKey="band" stroke="none" fill="#60a5fa" fillOpacity={0.18} isAnimationActive={false}
           />
-          <ReferenceLine y={WHO_PM25} stroke="#10b981" strokeDasharray="4 3" />
-          <ReferenceLine y={UK_2040} stroke="#f59e0b" strokeDasharray="4 3" />
+          <ReferenceLine y={WHO_PM25} stroke="#10b981" strokeDasharray="4 3"
+            label={{ value: `WHO ${WHO_PM25} µg`, position: "insideTopRight", fill: "#10b981", fontSize: 9 }} />
+          <ReferenceLine y={UK_2040} stroke="#f59e0b" strokeDasharray="4 3"
+            label={{ value: `UK 2040 · ${UK_2040} µg`, position: "insideTopRight", fill: "#f59e0b", fontSize: 9 }} />
 
           {/* Historical line — solid blue, no dots */}
           <Line
