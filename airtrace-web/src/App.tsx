@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import type { LoadedData } from "@/types/lsoa";
 import { loadAll } from "@/lib/data";
-import { GRADE_BINS, GRADE_BINS_PM10, WHO_PM25, UK_PM10, gradeOf, gradeOfPM10, binsForPollutant } from "@/lib/scale";
+import { GRADE_BINS, GRADE_BINS_PM10, WHO_PM25, WHO_PM10, UK_PM10, gradeOf, gradeOfPM10, binsForPollutant, gradeForPollutant } from "@/lib/scale";
 import { windowedMeans, countAbove, windowedTemporalFactor } from "@/lib/exposure";
 import type { Pollutant } from "@/types/lsoa";
 import { useAppStore } from "@/store/useAppStore";
 import { DateRangeSlider } from "@/components/Controls/DateRangeSlider";
 import { SidePanel } from "@/components/SidePanel/SidePanel";
+import { TimeSeriesChart } from "@/components/SidePanel/TimeSeriesChart";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
 
@@ -141,6 +142,7 @@ function MainView({ data }: { data: LoadedData }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
+  const rippleMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const activeStreetRef = useRef<{ props: { name: string | null; highway: string; pm25: number; pm10?: number }; lngLat: mapboxgl.LngLat } | null>(null);
   const prevSelectedRef = useRef<string | null>(null);
 
@@ -154,6 +156,8 @@ function MainView({ data }: { data: LoadedData }) {
   const setSelected = useAppStore((s) => s.setSelected);
   const showOverlay = useAppStore((s) => s.showOverlay);
   const toggleOverlay = useAppStore((s) => s.toggleOverlay);
+  const showSidebar = useAppStore((s) => s.showSidebar);
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar);
 
   const means = useMemo(
     () => windowedMeans(data.series, fromYM, toYM, pollutant),
@@ -177,8 +181,12 @@ function MainView({ data }: { data: LoadedData }) {
     });
     mapRef.current = map;
 
+    // ResizeObserver fires on every animation frame while the sidebar CSS transition runs,
+    // so the canvas expands/contracts smoothly rather than jumping at the end.
+    const ro = new ResizeObserver(() => { map.resize(); });
+    ro.observe(containerRef.current!);
+
     map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-left");
-    map.addControl(new mapboxgl.NavigationControl({ visualizePitch: false }), "top-right");
 
     map.on("load", () => {
       map.resize();
@@ -239,9 +247,11 @@ function MainView({ data }: { data: LoadedData }) {
           "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 4, 14, 6] as never,
           "circle-stroke-color": "#475569",
           "circle-stroke-width": 1.5,
-          "circle-opacity": 0.35,
+          "circle-opacity": 0,
         },
       });
+      // Fade-in transition — fires whenever circle-opacity changes from 0
+      map.setPaintProperty("sensors-circle", "circle-opacity-transition" as never, { duration: 700, delay: 0 });
 
       // Initial feature-states for LSOAs
       for (const [id, mean] of means) {
@@ -283,8 +293,16 @@ function MainView({ data }: { data: LoadedData }) {
       map.on("click", "sensors-circle", (e) => {
         const f = e.features?.[0];
         if (!f) return;
-        const p = f.properties as { name: string; device_id: string; status: string; date_from?: string; date_to?: string };
-        showPopup(map, popupRef, e.lngLat, sensorPopupHTML(p));
+        const p = f.properties as { name: string; device_id: string; status: string; is_final?: boolean; date_from?: string; date_to?: string };
+        const [lng, lat] = (f.geometry as GeoJSON.Point).coordinates as [number, number];
+        const center: [number, number] = [lng, lat];
+        const st = useAppStore.getState();
+        const keys = Object.keys(data.sensorTimeline).sort();
+        const effectiveMonth = (st.toYM in data.sensorTimeline) ? st.toYM : (keys[keys.length - 1] ?? st.toYM);
+        const isInActiveMonth = (data.sensorTimeline[effectiveMonth] ?? []).includes(p.device_id);
+        const rippleColor = !isInActiveMonth ? "#475569" : p.is_final ? "#10b981" : "#f97316";
+        spawnRipple(map, center, rippleColor);
+        showPopup(map, popupRef, center, sensorPopupHTML(p, isInActiveMonth));
       });
       map.on("click", (e) => {
         const hits = map.queryRenderedFeatures(e.point, { layers: ["streets-line", "lsoa-fill", "sensors-circle"] });
@@ -297,7 +315,10 @@ function MainView({ data }: { data: LoadedData }) {
     });
 
     return () => {
+      ro.disconnect();
       popupRef.current?.remove();
+      for (const m of rippleMarkersRef.current) m.remove();
+      rippleMarkersRef.current = [];
       map.remove();
       mapRef.current = null;
     };
@@ -350,6 +371,59 @@ function MainView({ data }: { data: LoadedData }) {
     applySensorState(map, new Set(data.sensorTimeline[effectiveMonth] ?? []));
   }, [toYM, data]);
 
+  // Ripple markers — CSS-animated rings on active sensors, only in sensors view
+  useEffect(() => {
+    const map = mapRef.current;
+    for (const m of rippleMarkersRef.current) m.remove();
+    rippleMarkersRef.current = [];
+    if (!map || viewMode !== "sensors") return;
+
+    const keys = Object.keys(data.sensorTimeline).sort();
+    const effectiveMonth = (toYM in data.sensorTimeline) ? toYM : (keys[keys.length - 1] ?? toYM);
+    const activeIds = new Set(data.sensorTimeline[effectiveMonth] ?? []);
+
+    const addMarkers = () => {
+      let i = 0;
+      for (const feature of data.sensorsGeo.features) {
+        if (!activeIds.has(feature.properties.device_id)) continue;
+        const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+        const color = feature.properties.is_final ? "#10b981" : "#f97316";
+
+        const wrap = document.createElement("div");
+        wrap.style.cssText = "position:relative;width:0;height:0;pointer-events:none;overflow:visible";
+        const ring = document.createElement("div");
+        ring.className = "sensor-ripple-ring";
+        ring.style.borderColor = color;
+        ring.style.animationDelay = `${i * 55}ms`;
+        wrap.appendChild(ring);
+
+        const marker = new mapboxgl.Marker({ element: wrap, anchor: "center" })
+          .setLngLat([lng, lat])
+          .addTo(map);
+        rippleMarkersRef.current.push(marker);
+
+        ring.addEventListener("animationend", () => {
+          marker.remove();
+          const idx = rippleMarkersRef.current.indexOf(marker);
+          if (idx !== -1) rippleMarkersRef.current.splice(idx, 1);
+        }, { once: true });
+
+        i++;
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      addMarkers();
+    } else {
+      map.once("load", addMarkers);
+    }
+
+    return () => {
+      for (const m of rippleMarkersRef.current) m.remove();
+      rippleMarkersRef.current = [];
+    };
+  }, [viewMode, toYM, data]);
+
   // Selected LSOA — highlight border + fly to
   useEffect(() => {
     const map = mapRef.current;
@@ -391,25 +465,28 @@ function MainView({ data }: { data: LoadedData }) {
   }, [viewMode, showOverlay, data]);
 
   return (
-    <div className="flex w-full h-screen">
-      <div className="flex-1 relative">
+    <div className="relative w-full h-screen">
+      <div className="absolute inset-0">
         <div ref={containerRef} className="absolute inset-0" />
 
         <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
-          <div className="flex bg-slate-900/85 backdrop-blur rounded-md border border-slate-700 overflow-hidden text-xs">
+          <div className="flex overflow-hidden" style={{ background: 'rgba(2,6,23,0.80)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 12 }}>
             <ToggleBtn active={viewMode === "streets"} onClick={() => setViewMode("streets")}>
-              Streets <span className="opacity-60">(8 450)</span>
+              Streets <span style={{ opacity: 0.4 }}>(8 450)</span>
             </ToggleBtn>
+            <span className="w-px self-stretch" style={{ background: 'rgba(255,255,255,0.10)' }} />
             <ToggleBtn active={viewMode === "lsoa"} onClick={() => setViewMode("lsoa")}>
-              Neighbourhoods — LSOA <span className="opacity-60">(302)</span>
+              Neighbourhoods <span style={{ opacity: 0.4 }}>(302)</span>
             </ToggleBtn>
+            <span className="w-px self-stretch" style={{ background: 'rgba(255,255,255,0.10)' }} />
             <ToggleBtn active={viewMode === "sensors"} onClick={() => setViewMode("sensors")}>
-              Sensors <span className="opacity-60">(68)</span>
+              Sensors <span style={{ opacity: 0.4 }}>(68)</span>
             </ToggleBtn>
           </div>
           {viewMode !== "sensors" && (
-            <div className="flex bg-slate-900/85 backdrop-blur rounded-md border border-slate-700 overflow-hidden text-xs self-start">
+            <div className="flex overflow-hidden self-start" style={{ background: 'rgba(2,6,23,0.80)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 12 }}>
               <ToggleBtn active={pollutant === "PM2.5"} onClick={() => setPollutant("PM2.5")}>PM2.5</ToggleBtn>
+              <span className="w-px self-stretch" style={{ background: 'rgba(255,255,255,0.10)' }} />
               <ToggleBtn active={pollutant === "PM10"}  onClick={() => setPollutant("PM10")}>PM10</ToggleBtn>
             </div>
           )}
@@ -421,46 +498,176 @@ function MainView({ data }: { data: LoadedData }) {
         {viewMode === "lsoa" && (
           <button
             onClick={toggleOverlay}
-            className={`absolute top-3 right-16 z-10 px-3 py-1.5 rounded-md border text-xs transition-colors ${
-              showOverlay
-                ? "bg-amber-500/20 border-amber-500/50 text-amber-200"
-                : "bg-slate-900/85 border-slate-700 text-slate-400 hover:text-slate-200"
-            }`}
             title={`Toggle outline on LSOAs above ${pollutant === "PM10" ? "UK LAQM 40 µg/m³" : "UK 2040 10 µg/m³"}`}
+            style={{
+              position: 'absolute', top: 12, right: 64, zIndex: 10,
+              background: showOverlay ? 'rgba(245,158,11,0.20)' : 'transparent',
+              color: showOverlay ? '#FCD34D' : '#94A3B8',
+              border: showOverlay ? '1px solid rgba(245,158,11,0.40)' : '1px solid rgba(255,255,255,0.10)',
+              padding: '6px 12px', borderRadius: 12,
+              font: '500 11px Inter, system-ui, sans-serif',
+              cursor: 'pointer', transition: 'all 150ms',
+            }}
           >
             {showOverlay ? "● " : "○ "}
-            Above {pollutant === "PM10" ? "UK LAQM" : "UK 2040"}: <span className="font-semibold">{aboveUK} / {totalLsoas}</span>
-            <span className="opacity-70"> ({((aboveUK / totalLsoas) * 100).toFixed(0)} %)</span>
+            Above {pollutant === "PM10" ? "UK LAQM" : "UK 2040"}: <strong style={{ fontWeight: 600 }}>{aboveUK} / {totalLsoas}</strong>
+            <span style={{ opacity: 0.6 }}> ({((aboveUK / totalLsoas) * 100).toFixed(0)} %)</span>
           </button>
         )}
 
         {viewMode === "streets" && (
-          <div className="absolute top-3 right-16 z-10 px-3 py-1.5 rounded-md border bg-slate-900/85 border-slate-700 text-xs text-slate-300">
-            Seasonal factor <span className="font-semibold text-white">× {factor.toFixed(2)}</span>
-            <span className="opacity-60 ml-1">({fromYM} → {toYM})</span>
+          <div className="absolute top-3 right-16 z-10 font-mono text-[11px]" style={{ background: 'rgba(2,6,23,0.80)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 12, padding: '6px 12px', color: '#CBD5E1' }}>
+            Seasonal factor <span style={{ color: '#fff', fontWeight: 600 }}>× {factor.toFixed(2)}</span>
+            <span style={{ opacity: 0.5, marginLeft: 8 }}>{fromYM} → {toYM}</span>
           </div>
         )}
 
-        <div className="absolute bottom-6 right-3 z-10 bg-slate-900/85 backdrop-blur border border-slate-700 rounded-md p-3 text-xs text-slate-200">
-          <div className="font-medium mb-2">{pollutant} — A–F scale</div>
-          <ul className="space-y-1">
-            {binsForPollutant(pollutant).map((b) => (
-              <li key={b.grade} className="flex items-center gap-2">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: b.color }} />
-                <span className="font-mono w-3">{b.grade}</span>
-                <span className="text-slate-400">{b.max === Infinity ? `≥ ${b.min}` : `${b.min}–${b.max}`} µg/m³</span>
-              </li>
+        {/* Legend — only shown when sidebar is collapsed */}
+        {!showSidebar && <div className="absolute bottom-6 right-3 z-10 text-xs" style={{ background: 'rgba(2,6,23,0.80)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 12, padding: '14px 16px', boxShadow: '0 18px 40px rgba(0,0,0,0.50)', width: 348 }}>
+          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-3">{pollutant} — A–F scale</div>
+
+          {/* Spectrum strip */}
+          <div style={{ height: 6, borderRadius: 999, background: 'linear-gradient(90deg, #00C864 0%, #C8E632 20%, #FFC800 40%, #FF8200 60%, #E63232 80%, #960096 100%)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', marginTop: 6, fontFamily: 'monospace', fontSize: 10, color: '#475569' }}>
+            {binsForPollutant(pollutant).map((b, i, arr) => (
+              <span key={b.grade} style={{ textAlign: i === 0 ? 'left' : i === arr.length - 1 ? 'right' : 'center' }}>{b.grade}</span>
             ))}
-          </ul>
-          <div className="mt-2 pt-2 border-t border-slate-700 text-slate-500 text-[10px]">
-            {viewMode === "streets"
-              ? `Streets · annual × seasonal factor`
-              : `LSOA mean over window`}
           </div>
+
+          {/* Specimen tiles — wider with more room per tile */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 6, marginTop: 10 }}>
+            {binsForPollutant(pollutant).map((b) => (
+              <div key={b.grade} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 4px 8px', background: 'rgba(10,18,11,0.50)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
+                <span style={{ position: 'absolute', top: 5, left: 5, width: 3, height: 3, background: b.color, opacity: 0.9 }} />
+                <span style={{ fontFamily: 'monospace', fontSize: 24, fontWeight: 500, lineHeight: 1, color: '#F2F2F2', letterSpacing: '-0.02em' }}>{b.grade}</span>
+                <div style={{ width: 22, height: 2, borderRadius: 1, margin: '7px 0 6px', background: b.color }} />
+                <span style={{ fontFamily: 'monospace', fontSize: 9, textAlign: 'center', color: '#64748b', lineHeight: 1.2 }}>
+                  {b.max === Infinity ? `${b.min}+` : `${b.min}–${b.max}`}
+                  <span style={{ display: 'block', fontSize: 8, marginTop: 1 }}>µg/m³</span>
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed rgba(255,255,255,0.06)', fontSize: 10, color: '#475569' }}>
+            {viewMode === "streets" ? "Streets · annual × seasonal factor" : "LSOA mean over window"}
+          </div>
+        </div>}
+
+        {/* Floating chart panel — visible when sidebar is hidden and an LSOA is selected */}
+        {!showSidebar && selectedLsoa && (
+          <FloatingChartPanel data={data} />
+        )}
+
+      </div>
+
+      {/* Sidebar — absolute overlay so the map canvas never resizes (avoids black flash) */}
+      <div style={{
+        position: 'absolute', top: 0, right: 0, bottom: 0, width: 420, zIndex: 30,
+        transform: showSidebar ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 250ms cubic-bezier(0.4,0,0.2,1)',
+      }}>
+        {/* Toggle tab — sticks out to the left of the sidebar */}
+        <button
+          onClick={toggleSidebar}
+          title={showSidebar ? "Hide panel" : "Show panel"}
+          style={{
+            position: 'absolute', left: -20, top: '50%', transform: 'translateY(-50%)',
+            zIndex: 31, width: 20, height: 56,
+            background: 'rgba(2,6,23,0.85)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.10)', borderRight: 'none',
+            borderRadius: '8px 0 0 8px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: '#94A3B8', transition: 'color 150ms',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = '#F1F5F9'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = '#94A3B8'; }}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            {showSidebar
+              ? <polyline points="3,2 7,5 3,8" />
+              : <polyline points="7,2 3,5 7,8" />}
+          </svg>
+        </button>
+        <SidePanel data={data} />
+      </div>
+    </div>
+  );
+}
+
+/** Floating chart panel — shows when sidebar is collapsed and an LSOA is selected. */
+function FloatingChartPanel({ data }: { data: LoadedData }) {
+  const selectedLsoa = useAppStore((s) => s.selectedLsoa);
+  const setSelected   = useAppStore((s) => s.setSelected);
+  const pollutant     = useAppStore((s) => s.pollutant);
+  const fromYM        = useAppStore((s) => s.fromYM);
+  const toYM          = useAppStore((s) => s.toYM);
+
+  const rows    = selectedLsoa ? data.series.get(selectedLsoa) ?? null : null;
+  const feature = selectedLsoa ? data.lsoaGeo.features.find((f) => f.properties.LSOA21CD === selectedLsoa) ?? null : null;
+  const ward    = selectedLsoa ? (data.wardLookup[selectedLsoa] ?? null) : null;
+
+  const windowMean = useMemo(() => {
+    if (!rows) return NaN;
+    const field = pollutant === "PM10" ? "PM10_pred" : "PM2.5_pred";
+    let s = 0, n = 0;
+    for (const r of rows) {
+      if (r.year_month >= fromYM && r.year_month <= toYM) {
+        const v = r[field]; if (v !== undefined) { s += v; n++; }
+      }
+    }
+    return n > 0 ? s / n : NaN;
+  }, [rows, fromYM, toYM, pollutant]);
+
+  if (!rows || !feature) return null;
+
+  const grade = gradeForPollutant(windowMean, pollutant);
+  const color = binsForPollutant(pollutant).find((b) => b.grade === grade)!.color;
+  const whoLimit = pollutant === "PM10" ? WHO_PM10 : WHO_PM25;
+
+  return (
+    <div
+      style={{
+        position: 'absolute', top: 108, right: 12, zIndex: 15, width: 420,
+        background: 'rgba(2,6,23,0.88)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+        border: '1px solid rgba(255,255,255,0.10)', borderRadius: 14,
+        padding: '16px 18px', boxShadow: '0 20px 48px rgba(0,0,0,0.60)',
+      }}
+    >
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {ward && <div style={{ fontSize: 14, fontWeight: 600, color: '#F1F5F9', lineHeight: 1.2, marginBottom: 2 }}>{ward}</div>}
+          <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#64748b' }}>{feature.properties.LSOA21NM}</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginLeft: 12 }}>
+          {/* Datum grade */}
+          {Number.isFinite(windowMean) && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ fontFamily: 'monospace', fontSize: 28, fontWeight: 500, color: '#F2F2F2', lineHeight: 1, letterSpacing: '-0.02em' }}>{grade}</span>
+              <div style={{ width: 20, height: 2, borderRadius: 1, marginTop: 6, background: color }} />
+              <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#64748b', marginTop: 4 }}>{windowMean.toFixed(1)} µg/m³</span>
+              <span style={{ fontFamily: 'monospace', fontSize: 9, color: '#475569' }}>×{(windowMean / whoLimit).toFixed(1)} WHO</span>
+            </div>
+          )}
+          <button
+            onClick={() => setSelected(null)}
+            style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: 0, color: '#94A3B8', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          >×</button>
         </div>
       </div>
 
-      <SidePanel data={data} />
+      {/* Chart — fixed height for good fitting */}
+      <div style={{ height: 220 }}>
+        <TimeSeriesChart rows={rows} fromYM={fromYM} toYM={toYM} pollutant={pollutant} />
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 10, color: '#475569' }}>
+        <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#60a5fa', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />Monthly {pollutant}</span>
+        <span><span style={{ display: 'inline-block', width: 12, height: 8, background: 'rgba(96,165,250,0.30)', borderRadius: 2, marginRight: 4, verticalAlign: 'middle' }} />CI 90 %</span>
+        <span><span style={{ display: 'inline-block', width: 16, borderTop: '2px dashed #f43f5e', marginRight: 4, verticalAlign: 'middle' }} />Forecast</span>
+      </div>
     </div>
   );
 }
@@ -470,6 +677,7 @@ function applyVisibility(map: mapboxgl.Map, viewMode: "streets" | "lsoa" | "sens
     if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
   };
   if (viewMode === "streets") {
+    resetSensorOpacity(map);
     set("streets-line", "visible");
     set("lsoa-fill", "none");
     set("lsoa-outline", "none");
@@ -477,6 +685,7 @@ function applyVisibility(map: mapboxgl.Map, viewMode: "streets" | "lsoa" | "sens
     set("lsoa-selected", "none");
     set("sensors-circle", "none");
   } else if (viewMode === "lsoa") {
+    resetSensorOpacity(map);
     set("streets-line", "none");
     set("lsoa-fill", "visible");
     set("lsoa-outline", "visible");
@@ -491,6 +700,27 @@ function applyVisibility(map: mapboxgl.Map, viewMode: "streets" | "lsoa" | "sens
     set("lsoa-selected", "none");
     set("sensors-circle", "visible");
   }
+}
+
+/** Instantly resets sensor opacity to 0 so the next entry always fades in. */
+function resetSensorOpacity(map: mapboxgl.Map) {
+  if (!map.getLayer("sensors-circle")) return;
+  map.setPaintProperty("sensors-circle", "circle-opacity-transition" as never, { duration: 0 });
+  map.setPaintProperty("sensors-circle", "circle-opacity", 0);
+  map.setPaintProperty("sensors-circle", "circle-opacity-transition" as never, { duration: 700, delay: 0 });
+}
+
+function spawnRipple(map: mapboxgl.Map, lngLat: [number, number], color: string) {
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "position:relative;width:0;height:0;pointer-events:none;overflow:visible";
+  const ring = document.createElement("div");
+  ring.className = "sensor-ripple-ring";
+  ring.style.borderColor = color;
+  wrap.appendChild(ring);
+  const marker = new mapboxgl.Marker({ element: wrap, anchor: "center" })
+    .setLngLat(lngLat)
+    .addTo(map);
+  ring.addEventListener("animationend", () => marker.remove(), { once: true });
 }
 
 function showPopup(map: mapboxgl.Map, ref: React.RefObject<mapboxgl.Popup | null>, lngLat: mapboxgl.LngLatLike, html: string) {
@@ -517,9 +747,22 @@ function streetPopupHTML(
   return `<div style="font-family:system-ui;color:#0f172a;padding:2px 4px"><div style="font-weight:600">${esc(name)}</div><div style="font-size:11px;color:#64748b;margin-bottom:8px">${esc(p.highway)}${factorLabel}</div><div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;width:30px;height:30px;border-radius:6px;background:${color};color:#fff;font-weight:700;text-align:center;line-height:30px">${grade}</span><span style="font-size:18px;font-weight:600">${scaled.toFixed(1)} µg/m³</span></div><div style="font-size:11px;color:#475569;margin-top:6px">× ${ratio} above WHO · annual base ${base.toFixed(1)} µg/m³ (${pollutant})</div><div style="font-size:10px;color:#94a3b8;margin-top:2px">Window ${fromYM} → ${toYM}</div></div>`;
 }
 
-function sensorPopupHTML(p: { name: string; device_id: string; status: string; date_from?: string; date_to?: string }) {
-  const color = p.status === "active" ? "#10b981" : "#f97316";
-  const label = p.status === "active" ? "Active" : "Historical";
+function sensorPopupHTML(
+  p: { name: string; device_id: string; is_final?: boolean; date_from?: string; date_to?: string },
+  isInActiveMonth: boolean,
+) {
+  // Grey  → not in current month's active set → Inactive
+  // Green → in active set AND is_final        → Active
+  // Orange → in active set AND !is_final      → Active · excluded
+  let color: string;
+  let label: string;
+  if (!isInActiveMonth) {
+    color = "#475569"; label = "Inactive";
+  } else if (p.is_final) {
+    color = "#10b981"; label = "Active";
+  } else {
+    color = "#f97316"; label = "Active · excluded";
+  }
   const dateRange = p.date_from ? `<div style="font-size:10px;color:#94a3b8;margin-top:4px">${p.date_from} → ${p.date_to ?? "?"}</div>` : "";
   return `<div style="font-family:system-ui;color:#0f172a;padding:2px 4px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color}"></span><span style="font-weight:600">${esc(p.name)}</span></div><div style="font-size:11px;color:#64748b">ID: ${esc(p.device_id)}</div><div style="font-size:11px;font-weight:500;color:${color}">${label}</div>${dateRange}</div>`;
 }
@@ -529,16 +772,42 @@ function esc(s: string) {
 }
 
 function ToggleBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return <button onClick={onClick} className={"px-3 py-2 transition-colors " + (active ? "bg-slate-700 text-white" : "text-slate-300 hover:bg-slate-800")}>{children}</button>;
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '8px 14px',
+        background: active ? 'rgba(255,255,255,0.10)' : 'transparent',
+        color: active ? '#fff' : '#94A3B8',
+        border: 0,
+        font: '500 12px Inter, system-ui, sans-serif',
+        cursor: 'pointer',
+        transition: 'background 150ms, color 150ms',
+        whiteSpace: 'nowrap' as const,
+      }}
+      onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = '#CBD5E1'; }}
+      onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = '#94A3B8'; }}
+    >
+      {children}
+    </button>
+  );
 }
 
 function FullScreenMessage({ title, body, tone = "info" }: { title: string; body: string; tone?: "info" | "error" }) {
-  const accent = tone === "error" ? "text-red-400" : "text-slate-300";
+  const isError = tone === "error";
   return (
-    <div className="flex w-full h-screen items-center justify-center">
-      <div className="max-w-md text-center">
-        <h1 className={`text-2xl font-semibold ${accent}`}>{title}</h1>
-        <p className="mt-2 text-slate-400 text-sm">{body}</p>
+    <div className="flex w-full h-screen items-center justify-center bg-slate-950">
+      <div className="max-w-md text-center px-6">
+        <div className={`w-12 h-12 rounded-2xl mx-auto mb-5 flex items-center justify-center ${isError ? "bg-red-500/15" : "bg-emerald-500/15"}`}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isError ? "#f87171" : "#34d399"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {isError
+              ? <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>
+              : <><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></>
+            }
+          </svg>
+        </div>
+        <h1 className={`text-xl font-semibold ${isError ? "text-red-400" : "text-slate-100"}`}>{title}</h1>
+        <p className="mt-2 text-slate-500 text-sm leading-relaxed">{body}</p>
       </div>
     </div>
   );

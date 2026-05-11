@@ -60,6 +60,7 @@ export interface SensorProperties {
   name: string;
   device_id: string;
   status: SensorStatus;
+  is_final?: boolean;
   date_from?: string;
   date_to?: string;
 }
@@ -149,10 +150,11 @@ export interface AppState {
   toYM: string;
   selectedLsoa: string | null;
   showOverlay: boolean;
-  greenCoverMax: number | null;
   popDensityMin: number | null;
   /** Auto-play through the date range. */
   playing: boolean;
+  /** Whether the right side panel is visible. */
+  showSidebar: boolean;
 
   setViewMode: (m: ViewMode) => void;
   setPollutant: (p: Pollutant) => void;
@@ -161,6 +163,6 @@ export interface AppState {
   setRange: (from: string, to: string) => void;
   setSelected: (id: string | null) => void;
   toggleOverlay: () => void;
-  setGreenCoverMax: (v: number | null) => void;
   setPopDensityMin: (v: number | null) => void;
+  toggleSidebar: () => void;
 }

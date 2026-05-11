@@ -46,6 +46,10 @@ async function fetchSensorsGeojson(): Promise<SensorFeatureCollection> {
   const res = await fetch(`${supabaseStorageBase}sensors.geojson`);
   if (!res.ok) throw new Error(`sensors.geojson HTTP ${res.status}`);
   const fc = (await res.json()) as SensorFeatureCollection;
+  // Drop malformed records (missing device_id or placeholder name).
+  fc.features = fc.features.filter(
+    (f) => f.properties.device_id?.trim() && f.properties.name?.trim() && f.properties.name !== "Unknown",
+  );
   // Some features were exported with [lat, lng] instead of [lng, lat].
   // Liverpool longitude ≈ -3, so any feature whose first coordinate is > 0 is swapped.
   for (const feat of fc.features) {

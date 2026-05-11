@@ -81,11 +81,11 @@ export function DateRangeSlider({ months }: Props) {
   const tLabel = months[Math.max(localFrom, localTo)];
 
   return (
-    <div className="absolute bottom-6 left-3 z-10 w-[460px] bg-slate-900/85 backdrop-blur border border-slate-700 rounded-md p-4 text-xs text-slate-200">
+    <div className="absolute bottom-6 left-3 z-10 w-[460px] bg-slate-950/85 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-xl text-xs text-slate-200">
       <div className="flex items-center gap-3 mb-3">
         <button
           onClick={onPlayClick}
-          className="flex-shrink-0 w-9 h-9 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center transition-colors"
+          className="flex-shrink-0 w-9 h-9 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center transition-all duration-150 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-400/40"
           aria-label={playing ? "Pause" : "Play"}
           title={playing ? "Pause animation" : "Animate window forward"}
         >
@@ -109,12 +109,13 @@ export function DateRangeSlider({ months }: Props) {
       </div>
 
       <div className="relative h-6">
-        <div className="absolute top-2.5 left-0 right-0 h-1 bg-slate-700 rounded" />
+        <div className="absolute top-2.5 left-0 right-0 h-1 bg-white/10 rounded-full" />
         <div
           className={`absolute top-2.5 h-1 rounded ${playing ? "bg-emerald-300" : "bg-emerald-400"}`}
           style={{
             left: `${(Math.min(localFrom, localTo) / last) * 100}%`,
             right: `${100 - (Math.max(localFrom, localTo) / last) * 100}%`,
+            transition: playing ? 'left 360ms ease-out, right 360ms ease-out' : 'none',
           }}
         />
         <input
@@ -129,13 +130,6 @@ export function DateRangeSlider({ months }: Props) {
           className="absolute inset-0 w-full h-6 appearance-none bg-transparent pointer-events-auto cursor-pointer slider-thumb"
           aria-label="To month"
         />
-      </div>
-      <div className="flex justify-between mt-2 text-[10px] text-slate-500 font-mono">
-        <span>{months[0]}</span>
-        <span>{months[Math.floor(last / 4)]}</span>
-        <span>{months[Math.floor(last / 2)]}</span>
-        <span>{months[Math.floor((3 * last) / 4)]}</span>
-        <span>{months[last]} <span className="text-rose-400">·forecast</span></span>
       </div>
     </div>
   );

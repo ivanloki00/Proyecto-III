@@ -56,7 +56,7 @@ export function buildRanking(
   series: Map<string, MonthlyRow[]>,
   fromYM: string,
   toYM: string,
-  filters: { greenCoverMax: number | null; popDensityMin: number | null },
+  filters: { popDensityMin: number | null },
   pollutant: Pollutant = "PM2.5",
 ): RankingRow[] {
   const field = fieldFor(pollutant);
@@ -71,7 +71,6 @@ export function buildRanking(
     if (!rowsForLsoa) continue;
     const { mean, n } = meanInWindow(rowsForLsoa, fromYM, toYM, field);
     if (!Number.isFinite(mean)) continue;
-    if (filters.greenCoverMax !== null && p.pct_green > filters.greenCoverMax) continue;
     if (filters.popDensityMin !== null && p.pop_density_km2 < filters.popDensityMin) continue;
     rows.push({
       LSOA21CD: p.LSOA21CD,

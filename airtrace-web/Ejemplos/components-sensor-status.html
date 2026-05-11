@@ -1,0 +1,222 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_base.css">
+<style>
+  .ss-card {
+    padding: 20px;
+    background: rgba(255,255,255,0.025);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+  }
+
+  /* Three node tiles */
+  .nodes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .node {
+    position: relative;
+    padding: 14px 14px 12px;
+    background: rgba(10,18,11,0.55);
+    border: 1px solid var(--bd, rgba(255,255,255,0.06));
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .node .head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .node .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent);
+    flex-shrink: 0;
+  }
+  .node .label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-3);
+  }
+  .node .num {
+    font-family: var(--font-sans);
+    font-size: 30px;
+    font-weight: 600;
+    color: #F2F2F2;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .node .sub {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--fg-3);
+    line-height: 1.3;
+  }
+  .node.live {
+    --c: #10B981;
+    --bd: rgba(16,185,129,0.22);
+    background: rgba(16,185,129,0.05);
+  }
+  .node.live .dot {
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  .node.excl { --c: #F97316; --bd: rgba(249,115,22,0.18); background: rgba(249,115,22,0.04); }
+  .node.off  { --c: #64748B; --bd: rgba(255,255,255,0.06); }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(16,185,129,0.18); }
+    50%      { box-shadow: 0 0 0 6px rgba(16,185,129,0.05); }
+  }
+
+  /* Coverage sparkline */
+  .coverage {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 10px;
+  }
+  .coverage-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .coverage-head .lbl {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-3);
+  }
+  .coverage-head .now {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-2);
+  }
+  .coverage-head .now b {
+    color: #F2F2F2;
+    font-weight: 500;
+  }
+
+  .spark {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 32px;
+  }
+  .spark .bar {
+    flex: 1;
+    background: rgba(16,185,129,0.35);
+    border-radius: 1px 1px 0 0;
+    min-height: 2px;
+    transition: background 100ms;
+  }
+  .spark .bar.now {
+    background: #10B981;
+  }
+  .spark .bar.zero {
+    background: rgba(100,116,139,0.25);
+  }
+
+  .axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--fg-4);
+    letter-spacing: 0.04em;
+  }
+
+  .footnote {
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--fg-3);
+    line-height: 1.5;
+  }
+  .footnote b { color: #F2F2F2; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="eyebrow">Components · Sensor status</div>
+
+  <div class="ss-card">
+    <div class="nodes">
+      <div class="node live">
+        <div class="head">
+          <span class="dot"></span>
+          <span class="label">Active · final</span>
+        </div>
+        <div class="num">21</div>
+        <div class="sub">Kept for the LUR model</div>
+      </div>
+      <div class="node excl">
+        <div class="head">
+          <span class="dot"></span>
+          <span class="label">Active · excluded</span>
+        </div>
+        <div class="num">12</div>
+        <div class="sub">Coverage / quality issues</div>
+      </div>
+      <div class="node off">
+        <div class="head">
+          <span class="dot"></span>
+          <span class="label">Offline</span>
+        </div>
+        <div class="num">35</div>
+        <div class="sub">No transmission this month</div>
+      </div>
+    </div>
+
+    <div class="coverage">
+      <div class="coverage-head">
+        <span class="lbl">Active sensors · 60 months</span>
+        <span class="now"><b>2024-12</b></span>
+      </div>
+      <div class="spark" id="spark"></div>
+      <div class="axis">
+        <span>2020-01</span><span>2022-06</span><span>2024-12</span>
+      </div>
+    </div>
+
+    <div class="footnote">
+      Three discrete states. Position the dot before the label; the pulsing ring is reserved for <b>active · final</b>. Numbers sit in a 30 px tabular figure; the sparkline below shows network coverage across the dataset's 60-month window.
+    </div>
+  </div>
+</div>
+
+<script>
+  // Synthetic coverage data — climbs from 0 to ~21 over 60 months
+  const months = 60;
+  const bars = [];
+  for (let i = 0; i < months; i++) {
+    const t = i / (months - 1);
+    // Lag at start, ramp up, then steady around 21
+    let v;
+    if (t < 0.18) v = 0;
+    else if (t < 0.35) v = (t - 0.18) * 65;
+    else v = 12 + Math.sin(i * 0.6) * 2 + (t * 12);
+    bars.push(Math.max(0, Math.round(v)));
+  }
+  const max = Math.max(...bars);
+  const root = document.getElementById('spark');
+  bars.forEach((v, i) => {
+    const b = document.createElement('div');
+    b.className = 'bar' + (v === 0 ? ' zero' : '') + (i === bars.length - 1 ? ' now' : '');
+    b.style.height = (v === 0 ? 2 : Math.max(2, (v / max) * 32)) + 'px';
+    root.appendChild(b);
+  });
+</script>
+</body>
+</html>

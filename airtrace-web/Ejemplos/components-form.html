@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_base.css">
+<style>
+  .fc-card {
+    padding: 18px;
+    background: rgba(255,255,255,0.025);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .fc-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .fc-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .fc-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-sans);
+    cursor: pointer;
+  }
+  .fc-switch {
+    position: relative;
+    width: 30px;
+    height: 18px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.10);
+    transition: background 150ms;
+    flex-shrink: 0;
+  }
+  .fc-switch.on { background: rgba(16,185,129,0.45); border-color: rgba(16,185,129,0.65); }
+  .fc-switch::after {
+    content: "";
+    position: absolute;
+    top: 1px; left: 1px;
+    width: 14px; height: 14px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    transition: transform 150ms;
+  }
+  .fc-switch.on::after { transform: translateX(12px); }
+  .fc-label {
+    font-size: 13px;
+    color: #F1F5F9;
+    font-weight: 500;
+  }
+  .fc-row.off .fc-label { color: var(--fg-3); }
+  .fc-value {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: #F1F5F9;
+    padding: 2px 8px;
+    background: rgba(16,185,129,0.10);
+    border: 1px solid rgba(16,185,129,0.25);
+    border-radius: 6px;
+  }
+  .fc-value.off {
+    color: var(--fg-4);
+    background: rgba(255,255,255,0.03);
+    border-color: rgba(255,255,255,0.07);
+  }
+  .fc-track {
+    position: relative;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+  }
+  .fc-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #10B981, #34D399);
+  }
+  .fc-thumb {
+    position: absolute;
+    top: 50%;
+    width: 16px; height: 16px;
+    margin-top: -8px;
+    margin-left: -8px;
+    border-radius: 999px;
+    background: #F8FAFC;
+    border: 2px solid #10B981;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  .fc-track.off { opacity: 0.35; }
+  .fc-help {
+    font-size: 12px;
+    color: var(--fg-2);
+    line-height: 1.5;
+    font-family: var(--font-sans);
+  }
+  .fc-help.off { color: var(--fg-4); }
+  .fc-help b {
+    color: #F1F5F9;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="eyebrow">Components · Form controls</div>
+
+  <div class="fc-card">
+    <div class="fc-row">
+      <div class="fc-head">
+        <span class="fc-toggle">
+          <span class="fc-switch on"></span>
+          <span class="fc-label">Max green-cover</span>
+        </span>
+        <span class="fc-value">≤ 25 %</span>
+      </div>
+      <div class="fc-track">
+        <div class="fc-fill" style="width:50%;"></div>
+        <div class="fc-thumb" style="left:50%;"></div>
+      </div>
+      <p class="fc-help" style="margin:0;">Keep only LSOAs whose <b>green-cover</b> is at or below the slider value — surfaces dense urban areas.</p>
+    </div>
+
+    <div class="fc-row off">
+      <div class="fc-head">
+        <span class="fc-toggle">
+          <span class="fc-switch"></span>
+          <span class="fc-label">Min population density</span>
+        </span>
+        <span class="fc-value off">off</span>
+      </div>
+      <div class="fc-track off"></div>
+      <p class="fc-help off" style="margin:0;">IMD proxy — enable to require <b>≥ N people per km²</b>.</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

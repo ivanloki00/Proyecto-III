@@ -9,13 +9,12 @@ interface Props { data: LoadedData; }
 export function DownloadRanking({ data }: Props) {
   const fromYM = useAppStore((s) => s.fromYM);
   const toYM = useAppStore((s) => s.toYM);
-  const greenCoverMax = useAppStore((s) => s.greenCoverMax);
   const popDensityMin = useAppStore((s) => s.popDensityMin);
 
   const handleDownload = () => {
     const ranking = buildRanking(
       data.lsoaGeo.features, data.series, fromYM, toYM,
-      { greenCoverMax, popDensityMin },
+      { popDensityMin },
     );
     const csv = Papa.unparse(ranking, {
       columns: [
@@ -35,12 +34,28 @@ export function DownloadRanking({ data }: Props) {
     <section className="mb-4">
       <button
         onClick={handleDownload}
-        className="w-full px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors"
+        style={{
+          width: '100%', padding: '8px 14px',
+          background: '#10B981', color: '#fff',
+          border: 0, borderRadius: 6,
+          font: '600 12px Inter, system-ui, sans-serif',
+          cursor: 'pointer',
+          boxShadow: '0 8px 24px rgba(16,185,129,0.30)',
+          transition: 'background 150ms, box-shadow 150ms',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#34D399';
+          e.currentTarget.style.boxShadow = '0 8px 28px rgba(16,185,129,0.45)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = '#10B981';
+          e.currentTarget.style.boxShadow = '0 8px 24px rgba(16,185,129,0.30)';
+        }}
       >
-        Download ranking (CSV)
+        Download ranking CSV
       </button>
-      <p className="text-[10px] text-slate-500 mt-1">
-        Window {fromYM} → {toYM}. Filters apply. Sorted by mean PM2.5 descending.
+      <p className="text-[10px] text-slate-500 mt-1.5 font-mono">
+        {fromYM} → {toYM} · filters apply · sorted by concentration desc.
       </p>
     </section>
   );

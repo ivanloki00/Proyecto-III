@@ -17,13 +17,19 @@ export function TimeSeriesChart({ rows, fromYM, toYM, pollutant = "PM2.5" }: Pro
   const isPM10 = pollutant === "PM10";
   const hasPM10 = rows.some((r) => r["PM10_pred"] !== undefined && r["PM10_pred"] !== null);
 
+  // Expand CI band visually so the margin around the prediction line is clearly readable.
+  // The half-width is multiplied by CI_EXPAND; a minimum of 1 µg/m³ half-width is enforced.
+  const CI_EXPAND = 3.5;
+
   const data = rows.map((r, i) => {
     const val = isPM10 && hasPM10 ? (r["PM10_pred"] ?? r["PM2.5_pred"]) : r["PM2.5_pred"];
+    const mid    = (r.ci_lower + r.ci_upper) / 2;
+    const halfW  = Math.max(1.0, ((r.ci_upper - r.ci_lower) / 2) * CI_EXPAND);
     return {
       ym: r.year_month,
       pmHist: r.type === "historical" ? val : null,
       pmFc: (i === lastHistIdx || r.type === "forecast") ? val : null,
-      band: [r.ci_lower, r.ci_upper] as [number, number],
+      band: [Math.max(0, mid - halfW), mid + halfW] as [number, number],
       isForecast: r.type === "forecast",
       val,
     };
@@ -54,7 +60,10 @@ export function TimeSeriesChart({ rows, fromYM, toYM, pollutant = "PM2.5" }: Pro
           )}
 
           <Area
-            type="monotone" dataKey="band" stroke="none" fill="#60a5fa" fillOpacity={0.18} isAnimationActive={false}
+            type="monotone" dataKey="band"
+            stroke="#60a5fa" strokeWidth={0.8} strokeOpacity={0.45}
+            fill="#60a5fa" fillOpacity={0.38}
+            isAnimationActive={false}
           />
           {isPM10 ? (
             <ReferenceLine y={WHO_PM10} stroke="#10b981" strokeDasharray="4 3"
