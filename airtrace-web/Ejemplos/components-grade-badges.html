@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="_base.css">
+<style>
+  .gb-card {
+    padding: 22px;
+    background: rgba(255,255,255,0.025);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+  }
+  /* Spectrum strip — A→F as a continuous band */
+  .spectrum {
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #00C864 0%, #C8E632 20%, #FFC800 40%, #FF8200 60%, #E63232 80%, #960096 100%);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  .spectrum-axis {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    margin-top: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg-3);
+    letter-spacing: 0.04em;
+  }
+  .spectrum-axis span { text-align: center; }
+  .spectrum-axis span:first-child { text-align: left; }
+  .spectrum-axis span:last-child { text-align: right; }
+
+  /* Specimen tiles */
+  .specimens {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+  }
+  .spec {
+    position: relative;
+    padding: 10px 8px 8px;
+    background: rgba(10,18,11,0.50);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+  }
+  .spec .letter {
+    font-family: var(--font-mono);
+    font-size: 26px;
+    font-weight: 500;
+    color: #F2F2F2;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .spec .rule {
+    width: 22px;
+    height: 2px;
+    border-radius: 1px;
+    margin: 7px 0 6px;
+    background: var(--c, #fff);
+  }
+  .spec .range {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--fg-3);
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+    text-align: center;
+  }
+  .spec .range .unit {
+    color: var(--fg-5);
+    font-size: 8px;
+    display: block;
+    margin-top: 1px;
+  }
+  /* Tiny corner tick — datum mark */
+  .spec::before {
+    content: "";
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    width: 3px;
+    height: 3px;
+    background: var(--c, #fff);
+    opacity: 0.9;
+  }
+
+  /* Inline reference — appears in tables / map labels */
+  .ref-row {
+    margin-top: 18px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .ref {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 22px;
+    padding: 0 8px 0 6px;
+    border-radius: 5px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-2);
+  }
+  .ref .tick {
+    width: 2px;
+    height: 12px;
+    background: var(--c);
+    border-radius: 1px;
+  }
+  .ref .g {
+    color: #F2F2F2;
+    font-weight: 500;
+  }
+
+  .footnote {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(255,255,255,0.06);
+    font-size: 11px;
+    color: var(--fg-2);
+    line-height: 1.55;
+  }
+  .footnote .mono {
+    color: var(--fg-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="eyebrow">Components · A–F grade</div>
+
+  <div class="gb-card">
+    <!-- Continuous spectrum -->
+    <div class="spectrum"></div>
+    <div class="spectrum-axis">
+      <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span>
+    </div>
+
+    <!-- Specimen tiles — typography first, colour as a hairline datum -->
+    <div class="specimens">
+      <div class="spec" style="--c:#00C864;"><div class="letter">A</div><div class="rule"></div><div class="range">0 – 5<span class="unit">µg/m³</span></div></div>
+      <div class="spec" style="--c:#C8E632;"><div class="letter">B</div><div class="rule"></div><div class="range">5 – 10<span class="unit">µg/m³</span></div></div>
+      <div class="spec" style="--c:#FFC800;"><div class="letter">C</div><div class="rule"></div><div class="range">10 – 15<span class="unit">µg/m³</span></div></div>
+      <div class="spec" style="--c:#FF8200;"><div class="letter">D</div><div class="rule"></div><div class="range">15 – 20<span class="unit">µg/m³</span></div></div>
+      <div class="spec" style="--c:#E63232;"><div class="letter">E</div><div class="rule"></div><div class="range">20 – 25<span class="unit">µg/m³</span></div></div>
+      <div class="spec" style="--c:#960096;"><div class="letter">F</div><div class="rule"></div><div class="range">25 +<span class="unit">µg/m³</span></div></div>
+    </div>
+
+    <!-- Inline reference variant -->
+    <div class="ref-row">
+      <span class="ref" style="--c:#00C864;"><span class="tick"></span><span class="g">A</span> Meets WHO</span>
+      <span class="ref" style="--c:#FFC800;"><span class="tick"></span><span class="g">C</span> Above UK 2040</span>
+      <span class="ref" style="--c:#E63232;"><span class="tick"></span><span class="g">E</span> Critical</span>
+    </div>
+
+    <div class="footnote">
+      Specimen tile: large letter in <span class="mono">Hosta White mono</span>, hairline tick in the grade hue, range below. Colour functions as datum, not background. The inline variant slots into table rows and map labels.
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -496,6 +496,20 @@ def main():
         dist = gdf["score_pm25"].value_counts().sort_index()
         log.info("Distribución score PM2.5: %s", dict(dist))
 
+    def pm10_score(v):
+        if pd.isna(v):   return None
+        if v < 15:       return "A"
+        elif v < 30:     return "B"
+        elif v < 45:     return "C"   # WHO 2021 PM10 daily guideline
+        elif v < 60:     return "D"
+        elif v < 75:     return "E"
+        else:            return "F"
+
+    if "PM10_final" in gdf.columns:
+        gdf["score_pm10"] = gdf["PM10_final"].apply(pm10_score)
+        dist = gdf["score_pm10"].value_counts().sort_index()
+        log.info("Distribución score PM10: %s", dict(dist))
+
     # --- Validación contra sensores reales ---
     validate_against_sensors(gdf, df_sensors, gdf_lsoa)
 
@@ -508,7 +522,7 @@ def main():
         + [c for c in gdf.columns if "street_mean" in c or "street_p25" in c
            or "street_p75" in c or "n_streets" in c]
         + [c for c in gdf.columns if "lsoa_pred" in c]
-        + ["PM2.5_final", "PM10_final", "score_pm25"]
+        + ["PM2.5_final", "PM10_final", "score_pm25", "score_pm10"]
     )
     # Dedup manteniendo orden
     seen = set()

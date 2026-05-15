@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+/* Hide scrollbars globally while keeping scroll functional */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+#root {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ── Mapbox canvas fixes ─────────────────────────────────────── */
+.mapboxgl-map {
+  position: absolute !important;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.mapboxgl-canvas-container,
+.mapboxgl-canvas {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+.mapboxgl-canvas {
+  outline: none;
+  display: block !important;
+  max-width: none !important;
+}
+
+/* ── Popup — macOS scale-up + fade-in ───────────────────────── */
+@keyframes popup-in {
+  from { transform: scale(0.95) translateZ(0); opacity: 0; }
+  to   { transform: scale(1)    translateZ(0); opacity: 1; }
+}
+
+/* Animate the content box only — never the outer container,
+   which Mapbox uses for translate-based positioning. */
+.mapboxgl-popup-content {
+  animation: popup-in 380ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform-origin: center bottom;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: #f8fafc;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+  padding: 10px 12px;
+}
+.mapboxgl-popup-tip {
+  border-top-color: #f8fafc !important;
+  border-bottom-color: #f8fafc !important;
+}
+.mapboxgl-popup-close-button {
+  color: #94a3b8;
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.mapboxgl-popup-close-button:hover {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+/* ── Dual-range slider thumbs ────────────────────────────────── */
+.slider-thumb { -webkit-appearance: none; appearance: none; pointer-events: none; }
+.slider-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #f8fafc; border: 2.5px solid #10b981;
+  cursor: grab; pointer-events: auto;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.slider-thumb::-webkit-slider-thumb:active {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(16,185,129,0.5);
+  cursor: grabbing;
+}
+.slider-thumb::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #f8fafc; border: 2.5px solid #10b981;
+  cursor: grab; pointer-events: auto;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+.slider-thumb::-webkit-slider-runnable-track { background: transparent; height: 6px; }
+.slider-thumb::-moz-range-track { background: transparent; height: 6px; }
+
+/* ── Sensor dot pulse animation ─────────────────────────────── */
+@keyframes pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(16,185,129,0.18); }
+  50%       { box-shadow: 0 0 0 6px rgba(16,185,129,0.05); }
+}
+.pulse-dot { animation: pulse-ring 1.8s ease-in-out infinite; }
+
+/* ── Sensor map ripple ring (HTML marker overlay) ────────────── */
+@keyframes sensor-ripple {
+  0%   { transform: scale(1);   opacity: 0.70; }
+  100% { transform: scale(4.5); opacity: 0;    }
+}
+.sensor-ripple-ring {
+  position: absolute;
+  top: 0; left: 0;
+  width: 12px; height: 12px;
+  margin-left: -6px; margin-top: -6px;
+  border-radius: 50%;
+  border: 1.5px solid #10b981;
+  animation: sensor-ripple 2.2s ease-out forwards;
+  pointer-events: none;
+}
+
+/* ── Sidebar custom scrollbar ────────────────────────────────── */
+.sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 2px;
+  transition: background 0.2s;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #334155; }

@@ -110,10 +110,24 @@ def build_future_meteo(meteo_2024: pd.DataFrame, h_months: int = H_FORECAST) -> 
 
 
 def load_all_temporal_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Carga y prepara los tres datasets temporales base."""
-    sensors  = pd.read_csv(DATA_INT / "sensores_monthly.csv")
-    meteo    = pd.read_csv(DATA_INT / "meteo_monthly.csv")
+    """Carga y prepara los tres datasets temporales base.
+
+    Prefiere los CSV `_full` (panel multianual 2021–2025) cuando existen,
+    para que el forecast cubra todo el rango temporal del frontend.
+    Cae al CSV anual cuando solo está la versión corta.
+    """
+    sensors_path = DATA_INT / "sensores_monthly_full.csv"
+    if not sensors_path.exists():
+        sensors_path = DATA_INT / "sensores_monthly.csv"
+    meteo_path = DATA_INT / "meteo_monthly_full.csv"
+    if not meteo_path.exists():
+        meteo_path = DATA_INT / "meteo_monthly.csv"
+
+    sensors  = pd.read_csv(sensors_path)
+    meteo    = pd.read_csv(meteo_path)
     lsoa_preds = pd.read_csv(DATA_PROC / "lur_barrios_predictions.csv")
+    log.info("Sensores: %s (%d filas) | Meteo: %s (%d filas)",
+             sensors_path.name, len(sensors), meteo_path.name, len(meteo))
 
     meteo   = add_temporal_features(meteo)
     sensors = add_temporal_features(sensors)
@@ -431,6 +445,7 @@ def forecast_all_lsoas(
     lsoa_preds: pd.DataFrame,
     meteo_2024: pd.DataFrame,
     h_months: int = H_FORECAST,
+    save: bool = True,
 ) -> pd.DataFrame:
     """
     Genera proyección histórica + pronóstico para TODOS los LSOAs (302).
@@ -450,10 +465,11 @@ def forecast_all_lsoas(
             log.warning("LSOA %s omitido: %s", lid, e)
 
     df_all = pd.concat(all_rows, ignore_index=True)
-    out_path = ROOT / "outputs" / "stlur_predictions.csv"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    df_all.to_csv(out_path, index=False)
-    log.info("Predicciones completas exportadas → %s (%d filas)", out_path, len(df_all))
+    if save:
+        out_path = ROOT / "outputs" / "stlur_predictions.csv"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        df_all.to_csv(out_path, index=False)
+        log.info("Predicciones completas exportadas → %s (%d filas)", out_path, len(df_all))
     return df_all
 
 
@@ -678,11 +694,26 @@ def main():
         plot_multi_lsoa(model_demo, lsoa_preds, meteo, lsoa_ids=example_ids)
 
     # ── 4. Exportar predicciones completas para los 302 LSOAs ─────────────
-    if "PM2.5" in models:
-        log.info("Generando predicciones para todos los LSOAs (puede tardar ~2 min)...")
-        df_all = forecast_all_lsoas(models["PM2.5"], lsoa_preds, meteo)
-        log.info("Exportado: %d filas para %d LSOAs",
-                 len(df_all), df_all["lsoa_id"].nunique())
+    dfs: dict[str, pd.DataFrame] = {}
+    for t in TARGETS:
+        if t in models:
+            log.info("Generando predicciones %s para todos los LSOAs (puede tardar ~2 min)...", t)
+            dfs[t] = forecast_all_lsoas(models[t], lsoa_preds, meteo, save=False)
+            log.info("  %s: %d filas para %d LSOAs", t, len(dfs[t]), dfs[t]["lsoa_id"].nunique())
+
+    if dfs:
+        base = dfs.get("PM2.5", next(iter(dfs.values())))
+        if "PM2.5" in dfs and "PM10" in dfs:
+            base = base.merge(
+                dfs["PM10"][["lsoa_id", "year_month", "type", "PM10_pred"]],
+                on=["lsoa_id", "year_month", "type"],
+                how="left",
+            )
+        out_path = ROOT / "outputs" / "stlur_predictions.csv"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        base.to_csv(out_path, index=False)
+        log.info("CSV final exportado → %s (%d filas, cols: %s)",
+                 out_path, len(base), list(base.columns))
 
     log.info("=== Pipeline ST-LUR completado ===")
 
